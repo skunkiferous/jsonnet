@@ -1,0 +1,7 @@
+name	age:number	pet.name	pet.age:int	pet.race	email.0	email.1:string
+# Here the data:						
+John	33				john@test.com	john@gmail.com
+						
+Mary	24	Fluffy	3	cat		
+		# Mary has 2 pets! But we currently only support one level of sub-object/list				
+		#Bello	5	dog		

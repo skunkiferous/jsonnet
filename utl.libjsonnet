@@ -1,0 +1,271 @@
+# The 'utl' (Util) jsonnet library contains utility functions that are used by most libraries here,
+# and/or don't fit in any other specialized library. For example, logging, ...
+
+# Converts a value to a string for logging.
+local ts(x) =
+	if std.type(x) == 'string' then
+		if x == '' then
+			'""'
+		else
+			x
+	else std.toString(x);
+
+# Returns true for an "empty" value (null | '' | {} | []). Does NOT return true for 'false' / '0'
+local empty2(value) =
+	(value == null || value == '' || value == {} || value == []);
+
+# Builds a log message object
+# TODO support internationalisation of log messages
+local log(level,msg,data={}) =
+	assert (level == 'INFO') || (level == 'WARN') || (level == 'ERROR') || (level == 'FATAL')
+		: "Bad level: "+std.toString(level);
+	local m = ts(msg);
+	if std.type(data) == 'object' then
+		{ [level]: m } + data
+	else if !empty2(data) then
+		{ [level]: m, data: data }
+	else
+		{ [level]: m };
+
+# Builds a log message object about a value in a source (file?)
+local logVal(level, source, index, field, type, value, msg) =
+	local v = ts(value);
+	local t = ts(type);
+	log(level, "'"+t+"' value '"+v+"' "+msg, {Source: ts(source), Index: ts(index), Field: ts(field)});
+
+local makeObjectDrop5(keys,values,offset) =
+	local v0 = values[offset];
+	local v1 = values[offset+1];
+	local v2 = values[offset+2];
+	local v3 = values[offset+3];
+	local v4 = values[offset+4];
+	{ [if v0 != null then keys[offset]]: v0, [if v1 != null then keys[offset+1]]: v1,
+	  [if v2 != null then keys[offset+2]]: v2, [if v3 != null then keys[offset+3]]: v3,
+	  [if v4 != null then keys[offset+4]]: v4, };
+
+local makeObjectDropX(keys,values,offset) =
+	local size = std.length(keys) - offset;
+	if size == 0 then
+		{}
+	else
+		local v0 = values[offset];
+		if size == 1 then
+			{ [if v0 != null then keys[offset]]: v0, }
+		else
+			local v1 = values[offset+1];
+			if size == 2 then
+				{ [if v0 != null then keys[offset]]: v0, [if v1 != null then keys[offset+1]]: v1, }
+			else
+				local v2 = values[offset+2];
+				if size == 3 then
+					{ [if v0 != null then keys[offset]]: v0, [if v1 != null then keys[offset+1]]: v1,
+					  [if v2 != null then keys[offset+2]]: v2, }
+				else
+					if size == 4 then
+						local v3 = values[offset+3];
+						{ [if v0 != null then keys[offset]]: v0, [if v1 != null then keys[offset+1]]: v1,
+						  [if v2 != null then keys[offset+2]]: v2, [if v3 != null then keys[offset+3]]: v3, }
+					else if size == 5 then
+						makeObjectDrop5(keys,values,offset)
+					else
+						makeObjectDrop5(keys,values,offset) + makeObjectDropX(keys,values,offset+5);
+
+local makeObjectKeep5(keys,values,offset) =
+	{ [keys[offset]]: values[offset], [keys[offset+1]]: values[offset+1], [keys[offset+2]]: values[offset+2],
+	  [keys[offset+3]]: values[offset+3], [keys[offset+4]]: values[offset+4], };
+
+local makeObjectKeepX(keys,values,offset) =
+	local size = std.length(keys) - offset;
+	if size == 0 then
+		{}
+	else if size == 1 then
+		{ [keys[offset]]: values[offset] }
+	else if size == 2 then
+		{ [keys[offset]]: values[offset], [keys[offset+1]]: values[offset+1], }
+	else if size == 3 then
+		{ [keys[offset]]: values[offset], [keys[offset+1]]: values[offset+1],
+		  [keys[offset+2]]: values[offset+2], }
+	else if size == 4 then
+		{ [keys[offset]]: values[offset], [keys[offset+1]]: values[offset+1],
+		  [keys[offset+2]]: values[offset+2], [keys[offset+3]]: values[offset+3], }
+	else if size == 5 then
+		makeObjectKeep5(keys,values,offset)
+	else
+		makeObjectKeep5(keys,values,offset) + makeObjectKeepX(keys,values,offset+5);
+
+{
+	local utl = self,
+	
+	# Library description
+	DESCIPTION:: "The 'utl' (Util) jsonnet library contains utility functions that are used by most libraries here,\n"
+		+"and/or don't fit in any other specialized library. For example, logging, ...",
+	
+	# All the imported libraries
+	IMPORTS:: {},
+	
+	# Returns true for an "empty" value (null | '' | {} | []). Does NOT return true for 'false' / '0'
+	empty(value):: empty2(value),
+	
+	# Returns true for an "false" value (null | '' | {} | [] | false | 0)
+	no(value)::
+		(value == null || value == '' || value == {} || value == [] || value == false || value == 0),
+	
+	# Returns true for an "true" value: NOT (null | '' | {} | [] | false | 0)
+	yes(value)::
+		!utl.no(value),
+
+	# Builds an info message object
+	info(msg,data=null)::
+		log('INFO', msg, data),
+
+	# Builds a warning message object
+	warn(msg,data=null)::
+		log('WARN', msg, data),
+
+	# Builds an error message object. 'error' is a "reserved word"
+	err(msg,data=null)::
+		log('ERROR', msg, data),
+
+	# Builds a fatal message object
+	fatal(msg,data=null)::
+		log('FATAL', msg, data),
+
+	# Builds an error message saying the value is invalid for the given type.
+	# "source" is expected to be a string, for example, a file name.
+	# "index" is expected to be a number (but we accept strings), for example, a file line number.
+	# "field" is expected to be a string, for example, an object field(member) name.
+	# "type" is expected to be a string, for example, the expected type name of the value.
+	# "value" can be anything.
+	badVal(source, index, field, type, value)::
+		logVal('ERROR', source, index, field, type, value, 'is not valid'),
+
+	# Builds an warning message about a value.
+	# "source" is expected to be a string, for example, a file name.
+	# "index" is expected to be a number (but we accept strings), for example, a file line number.
+	# "field" is expected to be a string, for example, an object field(member) name.
+	# "type" is expected to be a string, for example, the expected type name of the value.
+	# "value" can be anything.
+	# "msg" is expected to be a string, saying what is the problem with this value.
+	warnVal(source, index, field, type, value, msg)::
+		logVal('WARN', source, index, field, type, value, msg),
+
+	# Check if "x" is an object that contains an "ERROR" or "FATAL" field.
+	local hasErrorInObj(x) =
+		(std.type(x) == "object") && (std.get(x, "ERROR") != null || std.get(x, "FATAL") != null),
+
+	# Check if the array "arr" contains a "log object", which is an "error" or "fatal".
+	local hasErrorInArray(arr) =
+		(std.type(arr) == "array") && (std.length(std.filter(hasErrorInObj, arr)) > 0),
+
+	# Receives an object, and return true if it contains an "errors" member, which contains "ERROR"
+	# or "FATAL" messages. If obj is an array, we check every object in it.
+	hasErrors(obj)::
+		if std.type(obj) == "object" then
+			hasErrorInArray(std.get(obj, "errors"))
+		else if std.type(obj) == "array" then
+			# TODO Is this recursion, the cause of the jsonnet error when spr.AUTO_SPLIT is true?
+			(std.length(std.filter(utl.hasErrors, obj)) > 0)
+		else
+			false,
+
+	# "Applies" the parameters to the function, calling it and returning the result.
+	# Will FAIL if "func" is not a function, "params" is not an array, or std.length(params) > 9.
+	apply(func,params)::
+		assert std.type(func) == "function": "'func' must be a function, but is "+std.type(func);
+		assert std.type(params) == "array": "'params' must be an array of parameters (can be empty), but is "
+			+std.type(params);
+		local p = params;
+		local n = std.length(p);
+		if n == 0 then
+			func()
+		else if n == 1 then
+			func(p[0])
+		else if n == 2 then
+			func(p[0],p[1])
+		else if n == 3 then
+			func(p[0],p[1],p[2])
+		else if n == 4 then
+			func(p[0],p[1],p[2],p[3])
+		else if n == 5 then
+			func(p[0],p[1],p[2],p[3],p[4])
+		else if n == 6 then
+			func(p[0],p[1],p[2],p[3],p[4],p[5])
+		else if n == 7 then
+			func(p[0],p[1],p[2],p[3],p[4],p[5],p[6])
+		else if n == 8 then
+			func(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7])
+		else if n == 9 then
+			func(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[8])
+		else
+			error "Too many parameters: "+std.toString(n),
+
+	# Returns true if the function "func" return true for any element in the array "arr"
+	matchAny(func,arr)::
+		(std.length(std.filter(func, arr)) > 0),
+
+	# Concatenate errors(array) but also concatenate result(?) too by puting them in an array.
+	# "parts" is an array of { result: ?, errors: [] }
+	mergeOnlyErrors(parts)::
+		std.foldr(function(a,b) { result: [a.result]+b.result, errors: a.errors+b.errors }, parts,
+			{ result: [], errors: [] }),
+
+	# Merge/combine result(object) and concatenate errors(array).
+	# "parts" is an array of { result: {}, errors: [] }
+	mergeContentAndErrors(parts)::
+		std.foldr(function(a,b) { result: a.result+b.result, errors: a.errors+b.errors }, parts,
+			{ result: {}, errors: [] }),
+
+	# Converts an object to an array. The field names must be unsigned integers.
+	# Missing fields will be set to "default", which defaults to null.
+	object2Array(obj,default=null)::
+		if obj == null then
+			null
+		else
+			assert std.type(obj) == 'object';
+			local fields = std.objectFields(obj);
+			if std.length(fields) == 0 then
+				[]
+			else
+				local idx = std.map(std.parseInt, fields);
+				local max = std.foldl(std.max, idx, -1);
+				local get(i) = std.get(obj,std.toString(i),default);
+				std.makeArray(max+1, get),
+
+	# Takes two arrays, keys and values, which must have the same length, and use them to build an object.
+	# Keys must be strings.
+	makeObject(keys,values,keepNullValues=true)::
+		assert std.type(keys) == 'array';
+		assert std.type(values) == 'array';
+		assert std.type(keepNullValues) == 'boolean';
+		local nKeys = std.length(keys);
+		local nValues = std.length(values);
+		assert nKeys == nValues;
+		if keepNullValues then
+			makeObjectKeepX(keys,values,0)
+		else
+			makeObjectDropX(keys,values,0),
+	
+	# Add all elements of arr
+	sum(arr, init)::
+		std.foldr(function(a,b) a + b, arr, init),
+
+	# All functions in the library, with their parameter names
+	FUNCS:: {
+		empty: ['value'],
+		no: ['value'],
+		yes: ['value'],
+		info: ['msg', 'data'],
+		warn: ['msg', 'data'],
+		err: ['msg', 'data'],
+		fatal: ['msg', 'data'],
+		badVal: ['source', 'index', 'field', 'type', 'value'],
+		warnVal: ['source', 'index', 'field', 'type', 'value', 'msg'],
+		apply: ['func', 'params'],
+		matchAny: ['func', 'arr'],
+		mergeOnlyErrors: ['parts'],
+		mergeContentAndErrors: ['parts'],
+		sum: ['arr', 'init'],
+		object2Array: ['obj', 'default'],
+		makeObject: ['keys', 'values','keepNullValues'],
+	},
+}

@@ -1,0 +1,372 @@
+# jsonnet library "spr" (Safe Parser) primary function is to split text files in lines, and import them as TSV.
+# It has some additional helper functions like safeParseJSON() to enable the primary function.
+
+local bigint = import 'bigint.libjsonnet';
+local utl = bigint.IMPORTS.utl;
+
+# field name separator (i.e. "a.b")
+local SEP = ".";
+
+# field type separator (i.e. "a.b:int")
+local TYPE_SEP = ":";
+
+# Valid identifer characters
+local ID_START = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+local INT_CHARS = "0123456789";
+local ID_PART =  ID_START+INT_CHARS;
+
+# Fatal error marker
+local FATAL = "FATAL: ";
+
+
+# Boolean type
+local BOOL = "boolean";
+
+# String type
+local STR = "string";
+
+# JSON type
+local JSON = "json";
+
+# Number type
+local NUM = "number";
+
+# Integer type
+local INT = "int";
+
+# Hexadecimal type
+local HEX = "hex";
+
+# All supported field types
+local TYPES = std.set( [BOOL, STR, JSON, NUM, INT, HEX] );
+
+# blank lines, and lines starting with "#", are returned as empty arrays.
+# Otherwise, line is split using the TAB character
+local trimBlankAndCommentAndSplit(line) =
+	local tmp = std.stripChars(line, "\t");
+	local isComment = std.startsWith(tmp,'#');
+	local isBlankOrEmpty = (std.length(tmp) == 0); # " " is not considered "blank"
+	if (isComment || isBlankOrEmpty) then [] else std.split(line, '\t');
+
+# Returns the string that follows the prefix (and separator) in "str"
+local dropPrefix(str, prefixWithoutSep) =
+	assert std.startsWith(str, prefixWithoutSep+SEP);
+	local lp = std.length(prefixWithoutSep);
+	# "+1" to skip separator too
+	std.substr(str, lp+1, std.length(str)-lp);
+
+# Returns true, if the fields starting with field+SEP are used as array indexes
+local fieldIsArray(fieldNames, field) =
+	if std.length(field) == 0 then
+		false
+	else
+		local prefixSep = field + SEP;
+		local f(x) = std.startsWith(x, prefixSep) && bigint.isUIntegerStr(dropPrefix(x, field));
+		utl.matchAny(f,fieldNames);
+
+# Returns true, if the fields starting with field+SEP are used as sub-object fields
+local fieldIsObj(fieldNames, field) =
+	if std.length(field) == 0 then
+		false
+	else
+		local prefixSep = field + SEP;
+		local f(x) = std.startsWith(x, prefixSep) && !bigint.isUIntegerStr(dropPrefix(x, field));
+		utl.matchAny(f,fieldNames);
+
+# Finds and returns all field "prefixes"
+local findFieldsPrefixes(fieldNames,depth) =
+	local d1 = depth+1;
+	local m(n) =
+		local arr = std.split(n,SEP);
+		if (std.length(arr) > d1) then std.join(SEP, arr[0:d1]) else '';
+	std.set(std.map(m, fieldNames));
+
+# Split the name and type of a field
+local splitNameAndType(str) =
+	local idx = std.findSubstr(TYPE_SEP, str);
+	if std.length(idx) == 0 then
+		[ str, STR ]
+	else
+		[ std.substr(str, 0, idx[0]), std.substr(str, idx[0]+1, std.length(str)-idx[0]-1) ];
+
+# Returns a function that takes an array of values, and computes the value of that field as an object.
+local genObjectBuilder(gfb,fieldNames,ids,field,matchingIdx) =
+	local matchingNames = std.map(function(i) fieldNames[i], matchingIdx);
+	local suffix(name) = std.split(dropPrefix(name, field), SEP)[0];
+	local suffixes = std.set(std.map(suffix,matchingNames));
+	local suffixesCount = std.length(suffixes);
+	local suffixIdx = std.range(0,suffixesCount-1);
+	local gen(suffixIdx) =
+		local subField = field+SEP+suffixes[suffixIdx];
+		gfb(fieldNames,ids,subField);
+	local suffixFuncs = std.map(gen, suffixIdx);
+	local objBuilder(values) =
+		local vals = std.map(function(i) suffixFuncs[i](values), suffixIdx);
+		local obj = utl.makeObject(suffixes, vals, false);
+		if obj == {} then null else obj;
+	objBuilder;
+
+# Returns a function that takes an array of values, and computes the value of that field as an array.
+local genArrayBuilder(gfb,fieldNames,ids,field,matchingIdx) =
+	local objBuilder = genObjectBuilder(gfb,fieldNames,ids,field,matchingIdx);
+	local arrayBuilder(values) =
+		utl.object2Array(objBuilder(values));
+	arrayBuilder;
+
+# Takes an array of all feild names, and a range over that array (ids) and a field name,
+# And retruns a *function* that takes an array of "values" and compute the value of the field.
+local genFieldBuilder(fieldNames,ids,field) =
+	local indexes = std.find(field,fieldNames);
+	local nIdx = std.length(indexes);
+	# Should never be more than one match!
+	assert nIdx == 0 || nIdx == 1: "Field "+field+" multi in "+std.toString(fieldNames);
+	# Is field a "full/exact field"?"
+	if nIdx == 1 then
+		local idx = indexes[0];
+		# Return unmodified value
+		function(values)
+			local v = values[idx];
+			if v == '' then null else v
+	else
+		# Field is composite, and must be "computed"
+		local fieldSep = field+SEP;
+		local matchingIdx = [ i for i in ids if std.startsWith(fieldNames[i], fieldSep) ];
+		assert std.length(matchingIdx) > 0: "Prefix "+field+" not in "+std.toString(fieldNames);
+		local firstMatch = dropPrefix(fieldNames[matchingIdx[0]],field);
+		local isArray = bigint.isUIntegerStr(firstMatch);
+		local me = genFieldBuilder;
+		if isArray then
+			genArrayBuilder(me,fieldNames,ids,field,matchingIdx)
+		else
+			genObjectBuilder(me,fieldNames,ids,field,matchingIdx);
+
+# Returns an object, where each field is a name in fieldNames, and the value is a *function*
+# which takes a "values" array, and compute the value of that field.
+# Note: Only "first level" fields are in the object.
+local genBuilder(fieldNames) =
+	local splitted = std.map(function(n) std.split(n, SEP), fieldNames);
+	local firstLevel = std.set(std.map(function(sfn) sfn[0], splitted));
+	local namesCount = std.length(fieldNames);
+	local ids = std.range(0, namesCount-1);
+	local concat(a,b) = a + b;
+	local gen(f) = { [f]: genFieldBuilder(fieldNames, ids, f) };
+	std.foldl(concat, std.map(gen,firstLevel), {});
+
+{
+	local spr = self,
+	
+	# Library description
+	DESCIPTION:: "jsonnet library 'spr' (Safe Parser) primary function is to split text files in lines, "
+		+"and import them as TSV.\nIt has some additional helper functions like safeParseJSON() to enable "
+		+"the primary function.",
+	
+	# All the imported libraries
+	IMPORTS:: { utl: utl, bigint: bigint },
+	
+	# Automatically convert "file content" as string into TSV?
+	# WARNING: Setting to True will currently fail due to a jsonnet(?) bug.
+	AUTO_SPLIT:: false,
+
+	# Split a string representing a whole file into a array of lines, removing any EOL characters
+	str2Lines(text)::
+		# We don't care what line endig is used, and we drop it.
+		local lines = std.split(std.strReplace(std.strReplace(text, '\r\n', '\n'), '\r', '\n'), '\n');
+		local n = std.length(lines);
+		if std.length(lines[n-1]) == 0 then
+			lines[:n-1]
+		else
+			lines,
+
+	# Split a string representing a whole file into a array of "valid" lines, removing any EOL characters,
+	# empty/comment lines, and spliting the rest of the lines using the TAB character
+	str2TSV(text)::
+		# Just split each line on \t, and clear blank/comment lines
+		std.map(trimBlankAndCommentAndSplit, spr.str2Lines(text)),
+
+	# Returns true, if "str" is JSON
+	# WARNING: Validation is currently NOT implemented! It would require support for regex, which isn't
+	# currently in jsonnet
+	isJSONStr(str)::
+		assert std.type(str) == "string";
+		if std.length(str) == 0 then
+			false
+		else
+			# TODO I need regex to valid JSON
+			true,
+
+	# *Safely* parse a JSON value. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseJSON(source, index, field, str)::
+		# TODO This will CRASH if it's not valid JSON!
+		if spr.isJSONStr(str) then
+			{ result: std.parseJson(str), errors: [] }
+		else
+			{ result: null, errors: [ utl.badVal(source, index, field, 'JSON', str) ] },
+
+	# Convert value to the desired type, if possible
+	safeParse(source, index, field, type, str)::
+		assert std.type(type) == "string";
+		if type == BOOL then
+			bigint.safeParseBoolean(source, index, field, str)
+		else if type == NUM then
+			bigint.safeParseNumber(source, index, field, str)
+		else if type == INT then
+			bigint.safeParseInteger(source, index, field, str)
+		else if type == HEX then
+			bigint.safeParseHex(source, index, field, str)
+		else if type == JSON then
+			spr.safeParseJSON(source, index, field, str)
+		else if type == STR then
+			assert std.type(str) == "string";
+			{ result: str, errors: [] }
+		else
+			{ result: null, errors: [ utl.badVal(source, index, field, type+'(unknown)', str) ] },
+
+	# Convert the line strings to values, as needed.
+	local tsvLine2TypedTSVLine(source, index, fieldNames, fieldTypes, values) =
+		local namesCount = std.length(fieldNames);
+		local valuesCount = std.length(values);
+		local min = std.min(namesCount, valuesCount);
+		local ids = std.range(0, min-1);
+		local mapper(i) =
+			local v = values[i];
+			if (std.length(v) > 0) && (fieldTypes[i] != STR) then
+				spr.safeParse(source, index, fieldNames[i], fieldTypes[i], v)
+			else
+				{ result: v, errors: [] };
+		utl.mergeOnlyErrors([mapper(i) for i in ids]),
+
+	# Takes the output of str2TSV(text), and convert the strings to values, as needed.
+	# If strtsv is actually a string, str2TSV(strtsv) is called on it first.
+	tsv2TypedTSV(source, strtsv)::
+		local tsv2 = if spr.AUTO_SPLIT && (std.type(strtsv) == "string") then spr.str2TSV(strtsv) else strtsv;
+		local fieldNamesAndTypes = std.map(splitNameAndType, tsv2[0]);
+		local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes);
+		local fieldTypes = std.map(function(nt) nt[1], fieldNamesAndTypes);
+		local mapper(i) =
+			tsvLine2TypedTSVLine(source, i, fieldNames, fieldTypes, tsv2[i]);
+		utl.mergeOnlyErrors([{"errors": [], "result": tsv2[0]}] +
+			std.map(mapper, std.range(1, std.length(tsv2)-1))),
+
+	# Returns true, if "str" is a valid identifier ([a-zA-Z]+[a-zA-Z0-9]*)
+	isIdentifier(str)::
+		assert std.type(str) == "string";
+		local len = std.length(str);
+		local tmp = std.lstripChars(str, ID_START);
+		(len > 0 && (len > std.length(tmp)) && std.length(std.lstripChars(tmp, ID_PART)) == 0),
+
+	# Returns true, if "str" is a valid "identifier path" (ID | ID.ID | ID.N)
+	isIdentifierPath(str)::
+		local parts = std.split(str, SEP);
+		local len = std.length(parts);
+		if (len == 0) || !spr.isIdentifier(parts[0]) then
+			false
+		else
+			local ok(i) = (spr.isIdentifier(i) || bigint.isUIntegerStr(i));
+			(len == std.length(std.filter(ok, parts[1:])) + 1),
+
+	# Validates the header row (field definitions) of the TSV file. Returns a array of errors.
+	local checkTSVFieldNames(source, tsv) =
+		if std.type(tsv) != "array" then
+			[ FATAL+source + " 'tsv' should be an array of array of strings (#1)" ]
+		else if std.length(tsv) == 0 then
+			[ FATAL+source + " is empty" ]
+		else
+			local fieldNamesAndTypes = tsv[0];
+			if std.type(fieldNamesAndTypes) != "array" then
+				[ FATAL+source + " 'tsv' should be an array of array of strings (#2)" ]
+			else if std.length(fieldNamesAndTypes) == 0 then
+				[ FATAL+source + " has no field name defined in header row" ]
+			else
+				local nonEmpty = std.filter(function(f) std.length(f) > 0, std.prune(fieldNamesAndTypes));
+				if std.length(fieldNamesAndTypes) != std.length(nonEmpty) then
+					[ FATAL+source + " has empty field name(s) defined in header row" ]
+				else
+					local multiType = std.filter(function(f) std.length(std.findSubstr(TYPE_SEP, f)) > 1,
+						fieldNamesAndTypes);
+					if std.length(multiType) > 0 then
+						[ FATAL+source + " has field name(s) that are multiple type separators "
+							+ std.toString(multiType) ]
+					else
+						local fieldNamesAndTypes2 = std.map(splitNameAndType, fieldNamesAndTypes);
+						local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes2);
+						local fieldTypes = std.map(function(nt) nt[1], fieldNamesAndTypes2);
+						local badTypes = std.filter(function(t) !std.setMember(t, TYPES), fieldTypes);
+						if std.length(badTypes) > 0 then
+							[ FATAL+source + " has field(s) that use unsupported types "
+								+ std.toString(badTypes) ]
+						else
+							local badIds = std.filter(function(f) !spr.isIdentifierPath(f), fieldNames);
+							if std.length(badIds) > 0 then
+								[ FATAL+source + " has field name(s) that are not valid identifiers "
+									+ std.toString(badIds) ]
+							else
+								local prefixes = findFieldsPrefixes(fieldNames, 0);
+								local objPrefixes = std.filter(function(p) fieldIsObj(fieldNames, p),
+									prefixes);
+								local arrayPrefixes = std.filter(function(p) fieldIsArray(fieldNames, p),
+									prefixes);
+								local both = std.setInter(objPrefixes, arrayPrefixes);
+								if std.length(both) != 0 then
+									[ FATAL+source + " has field name(s) that are both objects and arrays "
+										+ std.toString(both) ]
+								else
+									[],
+
+	# Process the content of a "TSV file", returning an object mapping the file name to it's "result" and
+	# the processing "errors"
+	local tsv2Obj2(source, tsv3) =
+		local headerErrors = checkTSVFieldNames(source, tsv3);
+		if std.length(headerErrors) > 0 then
+			# Content is not processed, if headers have errors!
+			{ [source] : { result: null, errors: headerErrors } }
+		else
+			local fieldNamesAndTypes = std.map(splitNameAndType, tsv3[0]);
+			local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes);
+			# We assume the values were already converted, so we don't care about fieldTypes.
+			local lines = tsv3[1:];
+			local builders = genBuilder(fieldNames);
+			local firstLevel = std.objectFields(builders);
+			local mapper(i) =
+				local values = lines[i];
+				local isEmpty = (std.length(values) == 0);
+				# nulls will be removed later
+				if isEmpty then
+					null
+				else
+					local vals = std.map(function(f) builders[f](values), firstLevel);
+					{ result: utl.makeObject(firstLevel,vals,false), errors: [] };
+			local mapped = std.map(mapper, std.range(0, std.length(lines)-1));
+			local filtered = std.filter(function(o) o != null, mapped);
+			{ [source] : utl.mergeOnlyErrors(filtered)} ,
+
+	# Process the content of a "TSV file", returning an object mapping the file name to it's "result" and the
+	# processing "errors". If tsv is actually a string, tsv2TypedTSV(tsv) is called on it first.
+	# Otherwise, this function assumes the strings have *already* been converted to the appropriate type,
+	# where nescesary.
+	tsv2Obj(source, tsv)::
+		if spr.AUTO_SPLIT then
+			local tsv2 = if std.type(tsv) == "string" then
+				spr.tsv2TypedTSV(tsv)
+			else
+				{"errors": [], "result": tsv };
+			if utl.hasErrors(tsv2) then
+				tsv2
+			else
+				tsv2Obj2(source, tsv2.result)
+		else
+			tsv2Obj2(source, tsv),
+	
+	# All functions in the library, with their parameter names
+	FUNCS:: {
+		str2Lines: ['text'],
+		str2TSV: ['text'],
+		isJSONStr: ['str'],
+		safeParseJSON: ['source', 'index', 'field', 'str'],
+		safeParse: ['source', 'index', 'field', 'type', 'str'],
+		tsv2TypedTSV: ['source', 'tsv'],
+		isIdentifier: ['str'],
+		isIdentifierPath: ['str'],
+		tsv2Obj: ['source', 'tsv'],
+	},
+}

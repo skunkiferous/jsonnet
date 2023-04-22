@@ -1,0 +1,157 @@
+# jsonnet library "bigint" helps (a bit) dealing with integers, that are outside the range that can correctly
+# be represented as a "number" (64bit double). For completness, it also included a isNumberStr(),
+# safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.
+
+local utl = import 'utl.libjsonnet';
+
+# field name separator (i.e. "a.b")
+local SEP = ".";
+
+# Valid number characters
+local INT_CHARS = "0123456789";
+local HEX_CHARS = "0123456789abcdefABCDEF";
+
+{
+	local bigint = self,
+	
+	# Library description
+	DESCIPTION:: "jsonnet library 'bigint' helps (a bit) dealing with integers, that are outside the range"
+		+" that can correctly be represented\nas a 'number' (64bit double). For completness, it also "
+		+"included a isNumberStr(), safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.",
+	
+	# All the imported libraries
+	IMPORTS:: { utl: utl },
+
+	# Integer limit in JSON number
+	MIN_SAFE_INTEGER:: -9007199254740991,
+	MAX_SAFE_INTEGER:: 9007199254740991,
+
+	# Returns true, if "str" is a boolean
+	isBooleanStr(str)::
+		(str == "true" || str == "false"),
+
+	# Returns true, if "str" is an unsigned integer (even huge integers, that cannot be represented correctly
+	# as a JSON number).
+	isUIntegerStr(str)::
+		(std.type(str) == "string") && (std.length(str) > 0) &&
+			(std.length(std.stripChars(str, INT_CHARS)) == 0),
+
+	# Returns true, if "str" is an integer (even huge integers, that cannot be represented correctly as a
+	# JSON number).
+	isIntegerStr(str)::
+		if std.type(str) == "string" then
+			if std.startsWith(str,'-') then
+				bigint.isUIntegerStr(std.substr(str, 1, std.length(str)-1))
+			else
+				bigint.isUIntegerStr(str)
+		else
+			false,
+
+	# Returns true, if "str" is a number
+	isNumberStr(str)::
+		if std.type(str) != "string" then
+			false
+		else
+			local len = std.length(str);
+			if len == 0 then
+				false
+			else
+				local dots = std.findSubstr(SEP, str);
+				local nDots = std.length(dots);
+				if nDots == 0 then
+					bigint.isIntegerStr(str)
+				else if nDots == 1 then
+					local lp = dots[0];
+					local prefix = std.substr(str, 0, lp);
+					# "+1" to skip separator too
+					local rest = std.substr(str, lp+1, len-lp);
+					bigint.isIntegerStr(prefix) && bigint.isUIntegerStr(rest)
+				else
+					false,
+
+	# *Safely* parse a boolean value. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseBoolean(source, index, field, str)::
+		if bigint.isBooleanStr(str) then
+			{ result: (str == "true"), errors: [] }
+		else
+			{ result: null, errors: [  utl.badVal(source, index, field, 'boolean', str) ] },
+
+	# Returns true, if "str" is an hexadecimal integer
+	isHexStr(str)::
+		if std.type(str) == "string" then
+			local len = std.length(str);
+			(len > 2) && (std.startsWith(str, "0x") || std.startsWith(str, "0X")) &&
+				(std.length(std.stripChars(std.substr(str, 2, len-2), HEX_CHARS)) == 0)
+		else
+			false,
+
+	# Returns true, if this integer is within the range that can be correctly represented as a JSON number
+	isNotHugeInt(num)::
+		(std.type(num) == "number") && bigint.isIntegerStr(std.toString(num)) &&
+			(num >= bigint.MIN_SAFE_INTEGER) && (num <= bigint.MAX_SAFE_INTEGER),
+
+	# *Safely* parse a integer value. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	# "str" is potentially too "big" to be correctly represented with a "number".
+	# In this case, it will remain a string, and a warning will be given in "errors".
+	safeParseInteger(source, index, field, str)::
+		if bigint.isIntegerStr(str) then
+			# std.parseJson(str) will return a simple number value, if str is really a number
+			local num = std.parseJson(str);
+			if bigint.isNotHugeInt(num) then
+				{ result: num, errors: [] }
+			else
+				{ result: str, errors: [ utl.warnVal(source, index, field, 'integer', str,
+					'cannot be safely represented as a number.') ] }
+		else
+			{ result: null, errors: [ utl.badVal(source, index, field, 'integer', str) ] },
+
+	# *Safely* parse a HEX integer value. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	# "str" is potentially too "big" to be correctly represented with a "number".
+	# In this case, it will remain a string, and a warning will be given in "errors".
+	safeParseHex(source, index, field, str)::
+		if bigint.isHexStr(str) then
+			local num = std.parseHex(std.substr(str, 2, std.length(str)-2));
+			# hex num will never be < 0!
+			if num <= bigint.MAX_SAFE_INTEGER then
+				{ result: num, errors: [] }
+			else
+				# TODO: ideally, we would still convert that hex string into a decimal str
+				{ result: str, errors: [ utl.warnVal(source, index, field, 'hex', str,
+					'cannot be safely represented as a number.') ] }
+		else
+			{ result: null, errors: [ utl.badVal(source, index, field, 'hex', str) ] },
+
+	# *Safely* parse a decimal number value (i.e. '123.456'). Returns an object like { result: VALUE,
+	# errors: [] }. "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseNumber(source, index, field, str)::
+		if bigint.isNumberStr(str) then
+			# std.parseJson(str) will return a simple number value, if str is really a number
+			{ result: std.parseJson(str), errors: [] }
+		else
+			{ result: null, errors: [ utl.badVal(source, index, field, 'number', str) ] },
+	
+	# TODO: intCmp compares big integers, even if they are strings
+	# TODO: intLT ... (uses intCmp)
+	# TODO: intMin ... (uses intCmp)
+	# TODO: intMax ... (uses intCmp)
+	# TODO: intAdd adds big integers, even if they are strings
+	# TODO: intNeg negates big integers, even if they are strings
+	# TODO: intSub substracts big integers, even if they are strings (use intNeg and intAdd for impl)
+	
+	# All functions in the library, with their parameter names
+	FUNCS:: {
+		isBooleanStr: ['str'],
+		isUIntegerStr: ['str'],
+		isIntegerStr: ['str'],
+		isNumberStr: ['str'],
+		safeParseBoolean: ['source', 'index', 'field', 'str'],
+		isHexStr: ['str'],
+		isNotHugeInt: ['num'],
+		safeParseInteger: ['source', 'index', 'field', 'str'],
+		safeParseHex: ['source', 'index', 'field', 'str'],
+		safeParseNumber: ['source', 'index', 'field', 'str'],
+	},
+}
