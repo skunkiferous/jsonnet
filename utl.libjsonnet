@@ -163,7 +163,6 @@ local makeObjectKeepX(keys,values,offset) =
 		if std.type(obj) == "object" then
 			hasErrorInArray(std.get(obj, "errors"))
 		else if std.type(obj) == "array" then
-			# TODO Is this recursion, the cause of the jsonnet error when spr.AUTO_SPLIT is true?
 			(std.length(std.filter(utl.hasErrors, obj)) > 0)
 		else
 			false,

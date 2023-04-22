@@ -162,10 +162,6 @@ local genBuilder(fieldNames) =
 	
 	# All the imported libraries
 	IMPORTS:: { utl: utl, bigint: bigint },
-	
-	# Automatically convert "file content" as string into TSV?
-	# WARNING: Setting to True will currently fail due to a jsonnet(?) bug.
-	AUTO_SPLIT:: false,
 
 	# Split a string representing a whole file into a array of lines, removing any EOL characters
 	str2Lines(text)::
@@ -239,7 +235,7 @@ local genBuilder(fieldNames) =
 	# Takes the output of str2TSV(text), and convert the strings to values, as needed.
 	# If strtsv is actually a string, str2TSV(strtsv) is called on it first.
 	tsv2TypedTSV(source, strtsv)::
-		local tsv2 = if spr.AUTO_SPLIT && (std.type(strtsv) == "string") then spr.str2TSV(strtsv) else strtsv;
+		local tsv2 = if std.type(strtsv) == "string" then spr.str2TSV(strtsv) else strtsv;
 		local fieldNamesAndTypes = std.map(splitNameAndType, tsv2[0]);
 		local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes);
 		local fieldTypes = std.map(function(nt) nt[1], fieldNamesAndTypes);
@@ -341,21 +337,18 @@ local genBuilder(fieldNames) =
 			{ [source] : utl.mergeOnlyErrors(filtered)} ,
 
 	# Process the content of a "TSV file", returning an object mapping the file name to it's "result" and the
-	# processing "errors". If tsv is actually a string, tsv2TypedTSV(tsv) is called on it first.
+	# processing "errors". If tsv is actually a string, tsv2TypedTSV(source,tsv) is called on it first.
 	# Otherwise, this function assumes the strings have *already* been converted to the appropriate type,
 	# where nescesary.
 	tsv2Obj(source, tsv)::
-		if spr.AUTO_SPLIT then
-			local tsv2 = if std.type(tsv) == "string" then
-				spr.tsv2TypedTSV(tsv)
-			else
-				{"errors": [], "result": tsv };
-			if utl.hasErrors(tsv2) then
-				tsv2
-			else
-				tsv2Obj2(source, tsv2.result)
+		local tsv2 = if std.type(tsv) == "string" then
+			spr.tsv2TypedTSV(source, tsv)
 		else
-			tsv2Obj2(source, tsv),
+			{"errors": [], "result": tsv };
+		if utl.hasErrors(tsv2) then
+			tsv2
+		else
+			tsv2Obj2(source, tsv2.result),
 	
 	# All functions in the library, with their parameter names
 	FUNCS:: {

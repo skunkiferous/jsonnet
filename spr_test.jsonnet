@@ -137,11 +137,8 @@ local test_tsv2TypedTSV() =
 		spr.str2TSV('b:boolean\tn:number\ti:int\th:hex\tj:json\ts:string\ntrue\t12.34\t42\t0xF\t[true]\tx'))
 		== {"errors": [ ], "result": [["b:boolean", "n:number", "i:int", "h:hex", "j:json", "s:string"],
 			[true, 12.34, 42, 15, [true], "x"]]};
-	if spr.AUTO_SPLIT then
-		assert spr.tsv2TypedTSV("test", 'x\nz') == {"errors": [ ], "result": [["x"], ["z"]]};
-		true
-	else
-		true;
+	assert spr.tsv2TypedTSV("test", 'x\nz') == {"errors": [ ], "result": [["x"], ["z"]]};
+	true;
 
 local test_tsv2Obj() =
 	assert spr.tsv2Obj("test",spr.str2TSV('')) == { "test": { result: null, errors:
@@ -169,13 +166,9 @@ local test_tsv2Obj() =
 	assert std.length(tsv.errors) == 0;
 	assert spr.tsv2Obj("test",tsv.result) == {"test": {"errors": [ ], "result":
 		[{"b": true, "h": 15, "i": 42, "j": [true], "n": 12.34, "s": "x"}]}};
-
-	if spr.AUTO_SPLIT then
-		assert spr.tsv2Obj("test",'a\tb.s\tc.0\nx\ty\tz') == { "test": { result:
-			[{"a": "x", "b": {"s": "y"}, "c": ["z"]}], errors: [] } };
-		true
-	else
-		true;
+	assert spr.tsv2Obj("test",'a\tb.s\tc.0\nx\ty\tz') == { "test": { result:
+		[{"a": "x", "b": {"s": "y"}, "c": ["z"]}], errors: [] } };
+	true;
 
 
 {
