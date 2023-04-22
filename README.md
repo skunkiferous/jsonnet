@@ -15,3 +15,9 @@ I currently cannot "generate" data using expressions, like in pure Jsonnet.
 The "motivation" for the TSV parser is that my "users" will be jsut that, "users",
 not coders, so that I cannot expect them to be able to edit Jsonnet, JSON or XML.
 Editing a TSV file as a spreadsheet, is about as much as I can expect from them.
+
+run:
+
+jsonnet test.jsonnet
+
+to check the functionality of the code.
