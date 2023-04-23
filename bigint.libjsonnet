@@ -2,6 +2,7 @@
 # be represented as a "number" (64bit double). For completness, it also included a isNumberStr(),
 # safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.
 
+local log = import 'log.libjsonnet';
 local utl = import 'utl.libjsonnet';
 
 # field name separator (i.e. "a.b")
@@ -20,7 +21,7 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 		+"included a isNumberStr(), safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.",
 	
 	# All the imported libraries
-	IMPORTS:: { utl: utl },
+	IMPORTS:: { log: log, utl: utl },
 
 	# Integer limit in JSON number
 	MIN_SAFE_INTEGER:: -9007199254740991,
@@ -75,7 +76,7 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 		if bigint.isBooleanStr(str) then
 			{ result: (str == "true"), errors: [] }
 		else
-			{ result: null, errors: [  utl.badVal(source, index, field, 'boolean', str) ] },
+			{ result: null, errors: [  log.badVal(source, index, field, 'boolean', str) ] },
 
 	# Returns true, if "str" is an hexadecimal integer
 	isHexStr(str)::
@@ -102,10 +103,10 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 			if bigint.isNotHugeInt(num) then
 				{ result: num, errors: [] }
 			else
-				{ result: str, errors: [ utl.warnVal(source, index, field, 'integer', str,
+				{ result: str, errors: [ log.warnVal(source, index, field, 'integer', str,
 					'cannot be safely represented as a number.') ] }
 		else
-			{ result: null, errors: [ utl.badVal(source, index, field, 'integer', str) ] },
+			{ result: null, errors: [ log.badVal(source, index, field, 'integer', str) ] },
 
 	# *Safely* parse a HEX integer value. Returns an object like { result: VALUE, errors: [] }
 	# "result" is null and errors contains error message(s) if str is not a valid value.
@@ -119,10 +120,10 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 				{ result: num, errors: [] }
 			else
 				# TODO: ideally, we would still convert that hex string into a decimal str
-				{ result: str, errors: [ utl.warnVal(source, index, field, 'hex', str,
+				{ result: str, errors: [ log.warnVal(source, index, field, 'hex', str,
 					'cannot be safely represented as a number.') ] }
 		else
-			{ result: null, errors: [ utl.badVal(source, index, field, 'hex', str) ] },
+			{ result: null, errors: [ log.badVal(source, index, field, 'hex', str) ] },
 
 	# *Safely* parse a decimal number value (i.e. '123.456'). Returns an object like { result: VALUE,
 	# errors: [] }. "result" is null and errors contains error message(s) if str is not a valid value.
@@ -131,7 +132,7 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 			# std.parseJson(str) will return a simple number value, if str is really a number
 			{ result: std.parseJson(str), errors: [] }
 		else
-			{ result: null, errors: [ utl.badVal(source, index, field, 'number', str) ] },
+			{ result: null, errors: [ log.badVal(source, index, field, 'number', str) ] },
 	
 	# TODO: intCmp compares big integers, even if they are strings
 	# TODO: intLT ... (uses intCmp)

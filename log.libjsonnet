@@ -1,0 +1,121 @@
+# The 'log' (logging) jsonnet library contains functions that are used for logging.
+
+# Converts a value to a string for logging.
+local ts(x) =
+	if std.type(x) == 'string' then
+		if x == '' then
+			'""'
+		else
+			x
+	else std.toString(x);
+
+# Returns true for an "empty" value (null | '' | {} | []). Does NOT return true for 'false' / '0'
+local empty(value) =
+	(value == null || value == '' || value == {} || value == []);
+
+# Builds a log message object
+# TODO support internationalisation of log messages
+# XXX It seems (go?)jsonnet has problems with my function being called simply "log".
+local logX(level,msg,data) =
+	assert (level == 'INFO') || (level == 'WARN') || (level == 'ERROR') || (level == 'FATAL')
+		: "Bad level: "+std.toString(level);
+	local m = ts(msg);
+	if std.type(data) == 'object' then
+		{ [level]: m } + data
+	else if !empty(data) then
+		{ [level]: m, data: data }
+	else
+		{ [level]: m };
+
+# Builds a log message object about a value in a source (file?)
+local logVal(level, source, index, field, type, value, msg) =
+	local v = ts(value);
+	local t = ts(type);
+	logX(level, "'"+t+"' value '"+v+"' "+msg, {Source: ts(source), Index: ts(index), Field: ts(field)});
+
+{
+	local log = self,
+	
+	# Library description
+	DESCIPTION:: "The 'log' (logging) jsonnet library contains functions that are used for logging.",
+	
+	# All the imported libraries
+	IMPORTS:: {},
+
+	# Builds an info message object
+	info(msg,data=null)::
+		logX('INFO', msg, data),
+
+	# Builds a warning message object
+	warn(msg,data=null)::
+		logX('WARN', msg, data),
+
+	# Builds an error message object. 'error' is a "reserved word"
+	err(msg,data=null)::
+		logX('ERROR', msg, data),
+
+	# Builds a fatal message object
+	fatal(msg,data=null)::
+		logX('FATAL', msg, data),
+
+	# Builds an error message saying the value is invalid for the given type.
+	# "source" is expected to be a string, for example, a file name.
+	# "index" is expected to be a number (but we accept strings), for example, a file line number.
+	# "field" is expected to be a string, for example, an object field(member) name.
+	# "type" is expected to be a string, for example, the expected type name of the value.
+	# "value" can be anything.
+	badVal(source, index, field, type, value)::
+		logVal('ERROR', source, index, field, type, value, 'is not valid'),
+
+	# Builds an warning message about a value.
+	# "source" is expected to be a string, for example, a file name.
+	# "index" is expected to be a number (but we accept strings), for example, a file line number.
+	# "field" is expected to be a string, for example, an object field(member) name.
+	# "type" is expected to be a string, for example, the expected type name of the value.
+	# "value" can be anything.
+	# "msg" is expected to be a string, saying what is the problem with this value.
+	warnVal(source, index, field, type, value, msg)::
+		logVal('WARN', source, index, field, type, value, msg),
+
+	# Check if "x" is an object that contains an "ERROR" or "FATAL" field.
+	local hasErrorInObj(x) =
+		(std.type(x) == "object") && (std.get(x, "ERROR") != null || std.get(x, "FATAL") != null),
+
+	# Check if the array "arr" contains a "log object", which is an "error" or "fatal".
+	local hasErrorInArray(arr) =
+		(std.type(arr) == "array") && (std.length(std.filter(hasErrorInObj, arr)) > 0),
+
+	# Receives an object, and return true if it contains an "errors" member, which contains "ERROR"
+	# or "FATAL" messages. If obj is an array, we check every object in it.
+	hasErrors(obj)::
+		if std.type(obj) == "object" then
+			hasErrorInArray(std.get(obj, "errors"))
+		else if std.type(obj) == "array" then
+			(std.length(std.filter(log.hasErrors, obj)) > 0)
+		else
+			false,
+
+	# Concatenate errors(array) but also concatenate result(?) too by puting them in an array.
+	# "parts" is an array of { result: ?, errors: [] }
+	mergeOnlyErrors(parts)::
+		std.foldr(function(a,b) { result: [a.result]+b.result, errors: a.errors+b.errors }, parts,
+			{ result: [], errors: [] }),
+
+	# Merge/combine result(object) and concatenate errors(array).
+	# "parts" is an array of { result: {}, errors: [] }
+	mergeContentAndErrors(parts)::
+		std.foldr(function(a,b) { result: a.result+b.result, errors: a.errors+b.errors }, parts,
+			{ result: {}, errors: [] }),
+
+	# All functions in the library, with their parameter names
+	FUNCS:: {
+		info: ['msg', 'data?'],
+		warn: ['msg', 'data?'],
+		err: ['msg', 'data?'],
+		fatal: ['msg', 'data?'],
+		badVal: ['source', 'index', 'field', 'type', 'value'],
+		warnVal: ['source', 'index', 'field', 'type', 'value', 'msg'],
+		mergeOnlyErrors: ['parts'],
+		mergeContentAndErrors: ['parts'],
+	},
+}

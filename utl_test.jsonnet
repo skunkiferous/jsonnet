@@ -40,50 +40,6 @@ local test_yes() =
 	assert utl.yes(1);
 	true;
 
-local test_log() =
-	assert utl.info('x') == {INFO: "x"};
-	assert utl.info('x', true) == {INFO: "x", data: true};
-	assert utl.info('x', {y: true}) == {INFO: "x", y: true};
-	assert utl.warn('x') == {WARN: "x"};
-	assert utl.warn('x', true) == {WARN: "x", data: true};
-	assert utl.warn('x', {y: true}) == {WARN: "x", y: true};
-	assert utl.err('x') == {ERROR: "x"};
-	assert utl.err('x', true) == {ERROR: "x", data: true};
-	assert utl.err('x', {y: true}) == {ERROR: "x", y: true};
-	assert utl.fatal('x') == {FATAL: "x"};
-	assert utl.fatal('x', true) == {FATAL: "x", data: true};
-	assert utl.fatal('x', {y: true}) == {FATAL: "x", y: true};
-	assert utl.info('') == {INFO: '""'};
-	assert utl.info([0]) == {INFO: "[0]"};
-	true;
-
-local test_badVal() =
-	assert utl.badVal('s', 0, 'f', 'int', ['john']) == {ERROR: "'int' value '[\"john\"]' is not valid",
-		Field: "f", Index: "0", Source: "s"};
-	true;
-
-local test_warnVal() =
-	assert utl.warnVal('s', 0, 'f', 'int', 42, 'is the Ultimate Answer') == {WARN:
-		"'int' value '42' is the Ultimate Answer", Field: "f", Index: "0", Source: "s"};
-	true;
-
-local test_hasErrors() =
-	assert !utl.hasErrors({});
-	assert !utl.hasErrors({"errors": []});
-	assert !utl.hasErrors({"errors": [utl.info('x')]});
-	assert !utl.hasErrors({"errors": [utl.warn('x')]});
-	assert utl.hasErrors({"errors": [utl.err('x')]});
-	assert utl.hasErrors({"errors": [utl.fatal('x')]});
-
-	assert !utl.hasErrors([]);
-	assert !utl.hasErrors([{}]);
-	assert !utl.hasErrors([{"errors": []}]);
-	assert !utl.hasErrors([{"errors": [utl.info('x')]}]);
-	assert !utl.hasErrors([{"errors": [utl.warn('x')]}]);
-	assert utl.hasErrors([{"errors": [utl.err('x')]}]);
-	assert utl.hasErrors([{"errors": [utl.fatal('x')]}]);
-	true;
-
 local func0() =
 	'func0()';
 
@@ -178,16 +134,6 @@ local test_matchAny() =
 	assert !utl.matchAny(t, [0,false,'']);
 	true;
 
-local test_mergeOnlyErrors() =
-	assert utl.mergeOnlyErrors([{ result: true, errors: ['a'] }, { result: false, errors: ['b'] }]) ==
-		{ result: [true, false], errors: ['a','b'] };
-	true;
-
-local test_mergeContentAndErrors() =
-	assert utl.mergeContentAndErrors([{ result: {a:'a'}, errors: ['a'] },
-		{ result: {b:'b'}, errors: ['b'] }]) == { result: {a:'a',b:'b'}, errors: ['a','b'] };
-	true;
-
 local test_sum() =
 	assert utl.sum([1,2,3],-2) == 4;
 	assert utl.sum(['a','b'],'*') == 'ab*';
@@ -207,7 +153,6 @@ local test_makeObject() =
 	true;
 
 {
-	result: test_empty() && test_no() && test_yes() && test_log() && test_badVal() && test_warnVal() &&
-		test_hasErrors() && test_apply() && test_matchAny() && test_mergeOnlyErrors() &&
-		test_mergeContentAndErrors() && test_sum() && test_object2Array() && test_makeObject()
+	result: test_empty() && test_no() && test_yes() && test_apply() && test_matchAny() && 
+		test_sum() && test_object2Array() && test_makeObject()
 }

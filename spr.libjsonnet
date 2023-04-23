@@ -2,6 +2,7 @@
 # It has some additional helper functions like safeParseJSON() to enable the primary function.
 
 local bigint = import 'bigint.libjsonnet';
+local log = bigint.IMPORTS.log;
 local utl = bigint.IMPORTS.utl;
 
 # field name separator (i.e. "a.b")
@@ -161,7 +162,7 @@ local genBuilder(fieldNames) =
 		+"the primary function.",
 	
 	# All the imported libraries
-	IMPORTS:: { utl: utl, bigint: bigint },
+	IMPORTS:: { log: log, utl: utl, bigint: bigint },
 
 	# Split a string representing a whole file into a array of lines, removing any EOL characters
 	str2Lines(text)::
@@ -197,7 +198,7 @@ local genBuilder(fieldNames) =
 		if spr.isJSONStr(str) then
 			{ result: std.parseJson(str), errors: [] }
 		else
-			{ result: null, errors: [ utl.badVal(source, index, field, 'JSON', str) ] },
+			{ result: null, errors: [ log.badVal(source, index, field, 'JSON', str) ] },
 
 	# Convert value to the desired type, if possible
 	safeParse(source, index, field, type, str)::
@@ -216,7 +217,7 @@ local genBuilder(fieldNames) =
 			assert std.type(str) == "string";
 			{ result: str, errors: [] }
 		else
-			{ result: null, errors: [ utl.badVal(source, index, field, type+'(unknown)', str) ] },
+			{ result: null, errors: [ log.badVal(source, index, field, type+'(unknown)', str) ] },
 
 	# Convert the line strings to values, as needed.
 	local tsvLine2TypedTSVLine(source, index, fieldNames, fieldTypes, values) =
@@ -230,7 +231,7 @@ local genBuilder(fieldNames) =
 				spr.safeParse(source, index, fieldNames[i], fieldTypes[i], v)
 			else
 				{ result: v, errors: [] };
-		utl.mergeOnlyErrors([mapper(i) for i in ids]),
+		log.mergeOnlyErrors([mapper(i) for i in ids]),
 
 	# Takes the output of str2TSV(text), and convert the strings to values, as needed.
 	# If strtsv is actually a string, str2TSV(strtsv) is called on it first.
@@ -241,7 +242,7 @@ local genBuilder(fieldNames) =
 		local fieldTypes = std.map(function(nt) nt[1], fieldNamesAndTypes);
 		local mapper(i) =
 			tsvLine2TypedTSVLine(source, i, fieldNames, fieldTypes, tsv2[i]);
-		utl.mergeOnlyErrors([{"errors": [], "result": tsv2[0]}] +
+		log.mergeOnlyErrors([{"errors": [], "result": tsv2[0]}] +
 			std.map(mapper, std.range(1, std.length(tsv2)-1))),
 
 	# Returns true, if "str" is a valid identifier ([a-zA-Z]+[a-zA-Z0-9]*)
@@ -334,7 +335,7 @@ local genBuilder(fieldNames) =
 					{ result: utl.makeObject(firstLevel,vals,false), errors: [] };
 			local mapped = std.map(mapper, std.range(0, std.length(lines)-1));
 			local filtered = std.filter(function(o) o != null, mapped);
-			{ [source] : utl.mergeOnlyErrors(filtered)} ,
+			{ [source] : log.mergeOnlyErrors(filtered)} ,
 
 	# Process the content of a "TSV file", returning an object mapping the file name to it's "result" and the
 	# processing "errors". If tsv is actually a string, tsv2TypedTSV(source,tsv) is called on it first.
@@ -345,7 +346,7 @@ local genBuilder(fieldNames) =
 			spr.tsv2TypedTSV(source, tsv)
 		else
 			{"errors": [], "result": tsv };
-		if utl.hasErrors(tsv2) then
+		if log.hasErrors(tsv2) then
 			tsv2
 		else
 			tsv2Obj2(source, tsv2.result),
