@@ -184,7 +184,7 @@ local genBuilder(fieldNames) =
 	# WARNING: Validation is currently NOT implemented! It would require support for regex, which isn't
 	# currently in jsonnet
 	isJSONStr(str)::
-		assert std.type(str) == "string";
+		assert std.assertEqual(std.type(str), "string");
 		if std.length(str) == 0 then
 			false
 		else
@@ -202,7 +202,7 @@ local genBuilder(fieldNames) =
 
 	# Convert value to the desired type, if possible
 	safeParse(source, index, field, type, str)::
-		assert std.type(type) == "string";
+		assert std.assertEqual(std.type(type), "string");
 		if type == BOOL then
 			bigint.safeParseBoolean(source, index, field, str)
 		else if type == NUM then
@@ -214,7 +214,7 @@ local genBuilder(fieldNames) =
 		else if type == JSON then
 			spr.safeParseJSON(source, index, field, str)
 		else if type == STR then
-			assert std.type(str) == "string";
+			assert std.assertEqual(std.type(str), "string");
 			{ result: str, errors: [] }
 		else
 			{ result: null, errors: [ log.badVal(source, index, field, type+'(unknown)', str) ] },
@@ -247,7 +247,7 @@ local genBuilder(fieldNames) =
 
 	# Returns true, if "str" is a valid identifier ([a-zA-Z]+[a-zA-Z0-9]*)
 	isIdentifier(str)::
-		assert std.type(str) == "string";
+		assert std.assertEqual(std.type(str), "string");
 		local len = std.length(str);
 		local tmp = std.lstripChars(str, ID_START);
 		(len > 0 && (len > std.length(tmp)) && std.length(std.lstripChars(tmp, ID_PART)) == 0),

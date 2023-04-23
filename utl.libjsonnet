@@ -87,9 +87,8 @@ local makeObjectKeepX(keys,values,offset) =
 	# "Applies" the parameters to the function, calling it and returning the result.
 	# Will FAIL if "func" is not a function, "params" is not an array, or std.length(params) > 9.
 	apply(func,params)::
-		assert std.type(func) == "function": "'func' must be a function, but is "+std.type(func);
-		assert std.type(params) == "array": "'params' must be an array of parameters (can be empty), but is "
-			+std.type(params);
+		assert std.assertEqual(std.type(func), "function") &&
+			std.assertEqual(std.type(params), "array");
 		local p = params;
 		local n = std.length(p);
 		if n == 0 then
@@ -125,7 +124,7 @@ local makeObjectKeepX(keys,values,offset) =
 		if obj == null then
 			null
 		else
-			assert std.type(obj) == 'object';
+			assert std.assertEqual(std.type(obj), 'object');
 			local fields = std.objectFields(obj);
 			if std.length(fields) == 0 then
 				[]
@@ -138,12 +137,12 @@ local makeObjectKeepX(keys,values,offset) =
 	# Takes two arrays, keys and values, which must have the same length, and use them to build an object.
 	# Keys must be strings.
 	makeObject(keys,values,keepNullValues=true)::
-		assert std.type(keys) == 'array';
-		assert std.type(values) == 'array';
-		assert std.type(keepNullValues) == 'boolean';
+		assert std.assertEqual(std.type(keys), 'array')
+			&& std.assertEqual(std.type(values), 'array')
+			&& std.assertEqual(std.type(keepNullValues), 'boolean');
 		local nKeys = std.length(keys);
 		local nValues = std.length(values);
-		assert nKeys == nValues;
+		assert std.assertEqual(nKeys, nValues);
 		if keepNullValues then
 			makeObjectKeepX(keys,values,0)
 		else
