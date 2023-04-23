@@ -1,5 +1,9 @@
 # The 'log' (logging) jsonnet library contains functions that are used for logging.
 
+# Output all log events as traces too?
+# XXX Will cause error if "TRACE" is not defined
+local TRACE = false;#(std.extVar('TRACE') == 'true');
+
 # Converts a value to a string for logging.
 local ts(x) =
 	if std.type(x) == 'string' then
@@ -15,8 +19,7 @@ local empty(value) =
 
 # Builds a log message object
 # TODO support internationalisation of log messages
-# XXX It seems (go?)jsonnet has problems with my function being called simply "log".
-local logX(level,msg,data) =
+local buildLog(level,msg,data) =
 	assert (level == 'INFO') || (level == 'WARN') || (level == 'ERROR') || (level == 'FATAL')
 		: "Bad level: "+std.toString(level);
 	local m = ts(msg);
@@ -26,6 +29,11 @@ local logX(level,msg,data) =
 		{ [level]: m, data: data }
 	else
 		{ [level]: m };
+
+# Builds and optionally "traces" a log message object
+local logX(level,msg,data) =
+	local event = buildLog(level,msg,data);
+	if TRACE then std.trace(std.toString(event), event) else event;
 
 # Builds a log message object about a value in a source (file?)
 local logVal(level, source, index, field, type, value, msg) =
