@@ -118,6 +118,8 @@ local test_isIdentifier() =
 local test_isIdentifierPath() =
 	assert !spr.isIdentifierPath("");
 	assert spr.isIdentifierPath("test");
+	assert spr.isIdentifierPath("te_st");
+	assert spr.isIdentifierPath("_test");
 	assert spr.isIdentifierPath("test123");
 	assert !spr.isIdentifierPath("123test");
 	assert !spr.isIdentifierPath("5");

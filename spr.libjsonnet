@@ -12,7 +12,7 @@ local SEP = ".";
 local TYPE_SEP = ":";
 
 # Valid identifer characters
-local ID_START = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+local ID_START = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 local INT_CHARS = "0123456789";
 local ID_PART =  ID_START+INT_CHARS;
 
