@@ -1,4 +1,4 @@
-# jsonnet library "bigint" helps (a bit) dealing with integers, that are outside the range that can correctly
+# jsonnet library "int" helps (a bit) dealing with integers, that are outside the range that can correctly
 # be represented as a "number" (64bit double). For completness, it also included a isNumberStr(),
 # safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.
 
@@ -45,10 +45,10 @@ local cmpSameSign(a,b,negative) =
 		cmpStr(aStr,bStr,negative);
 
 {
-	local bigint = self,
+	local int = self,
 	
 	# Library description
-	DESCIPTION:: "jsonnet library 'bigint' helps (a bit) dealing with integers, that are outside the range"
+	DESCIPTION:: "jsonnet library 'int' helps (a bit) dealing with integers, that are outside the range"
 		+" that can correctly be represented\nas a 'number' (64bit double). For completness, it also "
 		+"included a isNumberStr(), safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.",
 	
@@ -74,9 +74,9 @@ local cmpSameSign(a,b,negative) =
 	isIntegerStr(str)::
 		if std.type(str) == "string" then
 			if std.startsWith(str,'-') then
-				bigint.isUIntegerStr(std.substr(str, 1, std.length(str)-1))
+				int.isUIntegerStr(std.substr(str, 1, std.length(str)-1))
 			else
-				bigint.isUIntegerStr(str)
+				int.isUIntegerStr(str)
 		else
 			false,
 
@@ -92,20 +92,20 @@ local cmpSameSign(a,b,negative) =
 				local dots = std.findSubstr(SEP, str);
 				local nDots = std.length(dots);
 				if nDots == 0 then
-					bigint.isIntegerStr(str)
+					int.isIntegerStr(str)
 				else if nDots == 1 then
 					local lp = dots[0];
 					local prefix = std.substr(str, 0, lp);
 					# "+1" to skip separator too
 					local rest = std.substr(str, lp+1, len-lp);
-					bigint.isIntegerStr(prefix) && bigint.isUIntegerStr(rest)
+					int.isIntegerStr(prefix) && int.isUIntegerStr(rest)
 				else
 					false,
 
 	# *Safely* parse a boolean value. Returns an object like { result: VALUE, errors: [] }
 	# "result" is null and errors contains error message(s) if str is not a valid value.
 	safeParseBoolean(source, index, field, str)::
-		if bigint.isBooleanStr(str) then
+		if int.isBooleanStr(str) then
 			{ result: (str == "true"), errors: [] }
 		else
 			{ result: null, errors: [  log.badVal(source, index, field, 'boolean', str) ] },
@@ -121,18 +121,18 @@ local cmpSameSign(a,b,negative) =
 
 	# Returns true, if this integer is within the range that can be correctly represented as a JSON number
 	isNotHugeInt(num)::
-		(std.type(num) == "number") && bigint.isIntegerStr(std.toString(num)) &&
-			(num >= bigint.MIN_SAFE_INTEGER) && (num <= bigint.MAX_SAFE_INTEGER),
+		(std.type(num) == "number") && int.isIntegerStr(std.toString(num)) &&
+			(num >= int.MIN_SAFE_INTEGER) && (num <= int.MAX_SAFE_INTEGER),
 
 	# *Safely* parse a integer value. Returns an object like { result: VALUE, errors: [] }
 	# "result" is null and errors contains error message(s) if str is not a valid value.
 	# "str" is potentially too "big" to be correctly represented with a "number".
 	# In this case, it will remain a string, and a warning will be given in "errors".
 	safeParseInteger(source, index, field, str)::
-		if bigint.isIntegerStr(str) then
+		if int.isIntegerStr(str) then
 			# std.parseJson(str) will return a simple number value, if str is really a number
 			local num = std.parseJson(str);
-			if bigint.isNotHugeInt(num) then
+			if int.isNotHugeInt(num) then
 				{ result: num, errors: [] }
 			else
 				{ result: str, errors: [ log.warnVal(source, index, field, 'integer', str,
@@ -145,10 +145,10 @@ local cmpSameSign(a,b,negative) =
 	# "str" is potentially too "big" to be correctly represented with a "number".
 	# In this case, it will remain a string, and a warning will be given in "errors".
 	safeParseHex(source, index, field, str)::
-		if bigint.isHexStr(str) then
+		if int.isHexStr(str) then
 			local num = std.parseHex(std.substr(str, 2, std.length(str)-2));
 			# hex num will never be < 0!
-			if num <= bigint.MAX_SAFE_INTEGER then
+			if num <= int.MAX_SAFE_INTEGER then
 				{ result: num, errors: [] }
 			else
 				# TODO: ideally, we would still convert that hex string into a decimal str
@@ -160,7 +160,7 @@ local cmpSameSign(a,b,negative) =
 	# *Safely* parse a decimal number value (i.e. '123.456'). Returns an object like { result: VALUE,
 	# errors: [] }. "result" is null and errors contains error message(s) if str is not a valid value.
 	safeParseNumber(source, index, field, str)::
-		if bigint.isNumberStr(str) then
+		if int.isNumberStr(str) then
 			# std.parseJson(str) will return a simple number value, if str is really a number
 			{ result: std.parseJson(str), errors: [] }
 		else
@@ -173,8 +173,8 @@ local cmpSameSign(a,b,negative) =
 
 	# Compares the integers a and b. Returns 0 if equals, 1 is a > b else -1
 	cmp(a,b)::
-		local aSign = bigint.sign(a);
-		local bSign = bigint.sign(b);
+		local aSign = int.sign(a);
+		local bSign = int.sign(b);
 		if aSign == 0 then
 			if bSign == 0 then
 				0
@@ -190,35 +190,35 @@ local cmpSameSign(a,b,negative) =
 
 	# Compares the integers a and b. Returns true if a < b.
 	lt(a,b)::
-		bigint.cmp(a,b) < 0,
+		int.cmp(a,b) < 0,
 
 	# Compares the integers a and b. Returns true if a <= b.
 	le(a,b)::
-		bigint.cmp(a,b) <= 0,
+		int.cmp(a,b) <= 0,
 
 	# Compares the integers a and b. Returns true if a > b.
 	gt(a,b)::
-		bigint.cmp(a,b) > 0,
+		int.cmp(a,b) > 0,
 
 	# Compares the integers a and b. Returns true if a >= b.
 	ge(a,b)::
-		bigint.cmp(a,b) >= 0,
+		int.cmp(a,b) >= 0,
 
 	# Compares the integers a and b. Returns true if a == b.
 	eq(a,b)::
-		bigint.cmp(a,b) == 0,
+		int.cmp(a,b) == 0,
 
 	# Compares the integers a and b. Returns true if a != b.
 	ne(a,b)::
-		bigint.cmp(a,b) != 0,
+		int.cmp(a,b) != 0,
 
 	# Compares the integers a and b. Returns the smallest one.
 	min(a,b)::
-		if bigint.cmp(a,b) < 0 then a else b,
+		if int.cmp(a,b) < 0 then a else b,
 
 	# Compares the integers a and b. Returns the biggest one.
 	max(a,b)::
-		if bigint.cmp(a,b) > 0 then a else b,
+		if int.cmp(a,b) > 0 then a else b,
 
 	# TODO: intAdd adds big integers, even if they are strings
 	# TODO: intNeg negates big integers, even if they are strings

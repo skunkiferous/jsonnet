@@ -1,9 +1,9 @@
 # jsonnet library "spr" (Safe Parser) primary function is to split text files in lines, and import them as TSV.
 # It has some additional helper functions like safeParseJSON() to enable the primary function.
 
-local bigint = import 'bigint.libjsonnet';
-local log = bigint.IMPORTS.log;
-local utl = bigint.IMPORTS.utl;
+local int = import 'int.libjsonnet';
+local log = int.IMPORTS.log;
+local utl = int.IMPORTS.utl;
 
 # field name separator (i.e. "a.b")
 local SEP = ".";
@@ -62,7 +62,7 @@ local fieldIsArray(fieldNames, field) =
 		false
 	else
 		local prefixSep = field + SEP;
-		local f(x) = std.startsWith(x, prefixSep) && bigint.isUIntegerStr(dropPrefix(x, field));
+		local f(x) = std.startsWith(x, prefixSep) && int.isUIntegerStr(dropPrefix(x, field));
 		utl.matchAny(f,fieldNames);
 
 # Returns true, if the fields starting with field+SEP are used as sub-object fields
@@ -71,7 +71,7 @@ local fieldIsObj(fieldNames, field) =
 		false
 	else
 		local prefixSep = field + SEP;
-		local f(x) = std.startsWith(x, prefixSep) && !bigint.isUIntegerStr(dropPrefix(x, field));
+		local f(x) = std.startsWith(x, prefixSep) && !int.isUIntegerStr(dropPrefix(x, field));
 		utl.matchAny(f,fieldNames);
 
 # Finds and returns all field "prefixes"
@@ -134,7 +134,7 @@ local genFieldBuilder(fieldNames,ids,field) =
 		local matchingIdx = [ i for i in ids if std.startsWith(fieldNames[i], fieldSep) ];
 		assert std.length(matchingIdx) > 0: "Prefix "+field+" not in "+std.toString(fieldNames);
 		local firstMatch = dropPrefix(fieldNames[matchingIdx[0]],field);
-		local isArray = bigint.isUIntegerStr(firstMatch);
+		local isArray = int.isUIntegerStr(firstMatch);
 		local me = genFieldBuilder;
 		if isArray then
 			genArrayBuilder(me,fieldNames,ids,field,matchingIdx)
@@ -162,7 +162,7 @@ local genBuilder(fieldNames) =
 		+"the primary function.",
 	
 	# All the imported libraries
-	IMPORTS:: { log: log, utl: utl, bigint: bigint },
+	IMPORTS:: { log: log, utl: utl, int: int },
 
 	# Split a string representing a whole file into a array of lines, removing any EOL characters
 	str2Lines(text)::
@@ -204,13 +204,13 @@ local genBuilder(fieldNames) =
 	safeParse(source, index, field, type, str)::
 		assert std.assertEqual(std.type(type), "string");
 		if type == BOOL then
-			bigint.safeParseBoolean(source, index, field, str)
+			int.safeParseBoolean(source, index, field, str)
 		else if type == NUM then
-			bigint.safeParseNumber(source, index, field, str)
+			int.safeParseNumber(source, index, field, str)
 		else if type == INT then
-			bigint.safeParseInteger(source, index, field, str)
+			int.safeParseInteger(source, index, field, str)
 		else if type == HEX then
-			bigint.safeParseHex(source, index, field, str)
+			int.safeParseHex(source, index, field, str)
 		else if type == JSON then
 			spr.safeParseJSON(source, index, field, str)
 		else if type == STR then
@@ -259,7 +259,7 @@ local genBuilder(fieldNames) =
 		if (len == 0) || !spr.isIdentifier(parts[0]) then
 			false
 		else
-			local ok(i) = (spr.isIdentifier(i) || bigint.isUIntegerStr(i));
+			local ok(i) = (spr.isIdentifier(i) || int.isUIntegerStr(i));
 			(len == std.length(std.filter(ok, parts[1:])) + 1),
 
 	# Validates the header row (field definitions) of the TSV file. Returns a array of errors.
