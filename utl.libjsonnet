@@ -151,6 +151,18 @@ local makeObjectKeepX(keys,values,offset) =
 	# Add all elements of arr
 	sum(arr, init)::
 		std.foldr(function(a,b) a + b, arr, init),
+	
+	# Extend the lenght of a string to the desired length.
+	# If str is too small, character in fill is used to extend it,
+	# and is added either before str if inFront is true, or behind.
+	extendStr(str,newLen,fill,inFront)::
+		assert std.length(fill) == 1;
+		local strLen = std.length(str);
+		if strLen < newLen then
+			local ext = std.repeat(fill, newLen - strLen);
+			if inFront then ext + str else str + ext
+		else
+			str,
 
 	# All functions in the library, with their parameter names
 	FUNCS:: {
@@ -162,5 +174,6 @@ local makeObjectKeepX(keys,values,offset) =
 		sum: ['arr', 'init'],
 		object2Array: ['obj', 'default?'],
 		makeObject: ['keys', 'values','keepNullValues?'],
+		extendStr: ['str','newLen','fill','inFront'],
 	},
 }

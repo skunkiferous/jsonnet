@@ -191,9 +191,114 @@ local test_safeParseBoolean() =
 		"result": null};
 	true;
 
+local test_sign() =
+	assert std.assertEqual(bigint.sign(-5), -1);
+	assert std.assertEqual(bigint.sign(0), 0);
+	assert std.assertEqual(bigint.sign(5), 1);
+	assert std.assertEqual(bigint.sign('-5'), -1);
+	assert std.assertEqual(bigint.sign('0'), 0);
+	assert std.assertEqual(bigint.sign('5'), 1);
+	true;
+
+local test_cmp() =
+	assert std.assertEqual(bigint.cmp(0,0), 0);
+	assert std.assertEqual(bigint.cmp(0,'0'), 0);
+	assert std.assertEqual(bigint.cmp('0',0), 0);
+	assert std.assertEqual(bigint.cmp('0','0'), 0);
+
+	assert std.assertEqual(bigint.cmp(5,5), 0);
+	assert std.assertEqual(bigint.cmp('5',5), 0);
+	assert std.assertEqual(bigint.cmp(5,'5'), 0);
+	assert std.assertEqual(bigint.cmp('5','5'), 0);
+	assert std.assertEqual(bigint.cmp(-5,'-5'), 0);
+	assert std.assertEqual(bigint.cmp('-5',-5), 0);
+	assert std.assertEqual(bigint.cmp('-5','-5'), 0);
+
+	assert std.assertEqual(bigint.cmp(5,-5), 1);
+	assert std.assertEqual(bigint.cmp(5,'-5'), 1);
+	assert std.assertEqual(bigint.cmp('5',-5), 1);
+	assert std.assertEqual(bigint.cmp('5','-5'), 1);
+
+	assert std.assertEqual(bigint.cmp(-5,5), -1);
+	assert std.assertEqual(bigint.cmp(-5,'5'), -1);
+	assert std.assertEqual(bigint.cmp('-5',5), -1);
+	assert std.assertEqual(bigint.cmp('-5','5'), -1);
+
+	assert std.assertEqual(bigint.cmp(0,1), -1);
+	assert std.assertEqual(bigint.cmp('0',1), -1);
+	assert std.assertEqual(bigint.cmp(0,'1'), -1);
+	assert std.assertEqual(bigint.cmp('0','1'), -1);
+
+	assert std.assertEqual(bigint.cmp(1,0), 1);
+	assert std.assertEqual(bigint.cmp('1',0), 1);
+	assert std.assertEqual(bigint.cmp(1,'0'), 1);
+	assert std.assertEqual(bigint.cmp('1','0'), 1);
+
+	assert std.assertEqual(bigint.cmp(-1,0), -1);
+	assert std.assertEqual(bigint.cmp('-1',0), -1);
+	assert std.assertEqual(bigint.cmp(-1,'0'), -1);
+	assert std.assertEqual(bigint.cmp('-1','0'), -1);
+	true;
+
+local test_cmp2() =
+	# We checked that cmp can deal with mixed strings and numbers, so no need to do it again.
+	assert !bigint.lt(0,-1);
+	assert bigint.lt(0,1);
+	assert !bigint.lt(1,1);
+	assert !bigint.lt(1,0);
+	assert bigint.lt(-1,0);
+
+	assert !bigint.le(0,-1);
+	assert bigint.le(0,1);
+	assert bigint.le(1,1);
+	assert !bigint.le(1,0);
+	assert bigint.le(-1,0);
+
+	assert bigint.gt(0,-1);
+	assert !bigint.gt(0,1);
+	assert !bigint.gt(1,1);
+	assert bigint.gt(1,0);
+	assert !bigint.gt(-1,0);
+
+	assert bigint.ge(0,-1);
+	assert !bigint.ge(0,1);
+	assert bigint.ge(1,1);
+	assert bigint.ge(1,0);
+	assert !bigint.ge(-1,0);
+
+	assert !bigint.eq(0,-1);
+	assert !bigint.eq(0,1);
+	assert bigint.eq(1,1);
+	assert !bigint.eq(1,0);
+	assert !bigint.eq(-1,0);
+
+	assert bigint.ne(0,-1);
+	assert bigint.ne(0,1);
+	assert !bigint.ne(1,1);
+	assert bigint.ne(1,0);
+	assert bigint.ne(-1,0);
+	true;
+
+local test_min() =
+	# We checked that cmp can deal with mixed strings and numbers, so no need to do it again.
+	assert std.assertEqual(bigint.min(1,0), 0);
+	assert std.assertEqual(bigint.min(0,1), 0);
+	assert std.assertEqual(bigint.min(-1,0), -1);
+	assert std.assertEqual(bigint.min(0,-1), -1);
+	true;
+
+local test_max() =
+	# We checked that cmp can deal with mixed strings and numbers, so no need to do it again.
+	assert std.assertEqual(bigint.max(1,0), 1);
+	assert std.assertEqual(bigint.max(0,1), 1);
+	assert std.assertEqual(bigint.max(-1,0), 0);
+	assert std.assertEqual(bigint.max(0,-1), 0);
+	true;
+
 {
 	result:
 		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() && test_isUIntegerStr() &&
 		test_isIntegerStr() && test_isNumberStr() && test_isHexStr() && test_isNotHugeInt() &&
-		test_safeParseInteger() && test_safeParseHex() && test_safeParseNumber() && test_safeParseBoolean()
+		test_safeParseInteger() && test_safeParseHex() && test_safeParseNumber() && test_safeParseBoolean() &&
+		test_sign() && test_cmp() && test_cmp2() && test_min() && test_max()
 }

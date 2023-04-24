@@ -152,7 +152,15 @@ local test_makeObject() =
 	assert std.assertEqual(utl.makeObject(['a'], [null],false), {});
 	true;
 
+local test_extendStr() =
+	assert std.assertEqual(utl.extendStr('a',3,'x',true), 'xxa');
+	assert std.assertEqual(utl.extendStr('a',3,'x',false), 'axx');
+	assert std.assertEqual(utl.extendStr('abc',3,'x',true), 'abc');
+	assert std.assertEqual(utl.extendStr('abcd',3,'x',true), 'abcd');
+	assert std.assertEqual(utl.extendStr('',3,'x',false), 'xxx');
+	true;
+
 {
 	result: test_empty() && test_no() && test_yes() && test_apply() && test_matchAny() && 
-		test_sum() && test_object2Array() && test_makeObject()
+		test_sum() && test_object2Array() && test_makeObject() && test_extendStr()
 }

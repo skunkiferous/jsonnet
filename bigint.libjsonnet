@@ -12,6 +12,38 @@ local SEP = ".";
 local INT_CHARS = "0123456789";
 local HEX_CHARS = "0123456789abcdefABCDEF";
 
+# Compares two integers that have the same, non-zero sign, and are strings.
+local cmpStr(a,b,negative) =
+	if a == b then
+		0
+	else
+		local aLen = std.length(a);
+		local bLen = std.length(b);
+		local a2 = if negative then std.substr(a, 1, aLen-1)  else a;
+		local b2 = if negative then std.substr(b, 1, bLen-1) else b;
+		local aLen2 = if negative then aLen-1  else aLen;
+		local bLen2 = if negative then bLen-1 else bLen;
+		local maxLen = std.max(aLen2, bLen2);
+		local a3 = utl.extendStr(a2,maxLen,'0',true);
+		local b3 = utl.extendStr(b2,maxLen,'0',true);
+		local unsignedCmp = if a3 < b3 then -1 else 1;
+		# Inverse result if negative is true!
+		if negative then -unsignedCmp else unsignedCmp;
+
+# Compares two integers that have the same, non-zero sign.
+local cmpSameSign(a,b,negative) =
+	local aType = std.type(a);
+	local bType = std.type(b);
+	if aType == bType then
+		if aType == 'number' then
+			if a == b then 0 else if a < b then -1 else 1
+		else
+			cmpStr(a,b,negative)
+	else
+		local aStr = if aType == 'string' then a else std.toString(a);
+		local bStr = if bType == 'string' then b else std.toString(b);
+		cmpStr(aStr,bStr,negative);
+
 {
 	local bigint = self,
 	
@@ -134,10 +166,60 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 		else
 			{ result: null, errors: [ log.badVal(source, index, field, 'number', str) ] },
 	
-	# TODO: intCmp compares big integers, even if they are strings
-	# TODO: intLT ... (uses intCmp)
-	# TODO: intMin ... (uses intCmp)
-	# TODO: intMax ... (uses intCmp)
+	# Returns -1, 0 or 1 based on the sign of the integer.
+	sign(num)::
+		# Assume num is an integer as string, if not a number ...
+		std.sign(if std.type(num) == "number" then num else std.parseJson(num)),
+
+	# Compares the integers a and b. Returns 0 if equals, 1 is a > b else -1
+	cmp(a,b)::
+		local aSign = bigint.sign(a);
+		local bSign = bigint.sign(b);
+		if aSign == 0 then
+			if bSign == 0 then
+				0
+			else if bSign > 0 then
+				-1
+			else
+				1
+		else if aSign != bSign then
+			if aSign > 0 then 1 else -1
+		else
+			# a and b have same sign, and are not 0, so we need "real" comparision
+			cmpSameSign(a,b,aSign < 0),
+
+	# Compares the integers a and b. Returns true if a < b.
+	lt(a,b)::
+		bigint.cmp(a,b) < 0,
+
+	# Compares the integers a and b. Returns true if a <= b.
+	le(a,b)::
+		bigint.cmp(a,b) <= 0,
+
+	# Compares the integers a and b. Returns true if a > b.
+	gt(a,b)::
+		bigint.cmp(a,b) > 0,
+
+	# Compares the integers a and b. Returns true if a >= b.
+	ge(a,b)::
+		bigint.cmp(a,b) >= 0,
+
+	# Compares the integers a and b. Returns true if a == b.
+	eq(a,b)::
+		bigint.cmp(a,b) == 0,
+
+	# Compares the integers a and b. Returns true if a != b.
+	ne(a,b)::
+		bigint.cmp(a,b) != 0,
+
+	# Compares the integers a and b. Returns the smallest one.
+	min(a,b)::
+		if bigint.cmp(a,b) < 0 then a else b,
+
+	# Compares the integers a and b. Returns the biggest one.
+	max(a,b)::
+		if bigint.cmp(a,b) > 0 then a else b,
+
 	# TODO: intAdd adds big integers, even if they are strings
 	# TODO: intNeg negates big integers, even if they are strings
 	# TODO: intSub substracts big integers, even if they are strings (use intNeg and intAdd for impl)
@@ -154,5 +236,15 @@ local HEX_CHARS = "0123456789abcdefABCDEF";
 		safeParseInteger: ['source', 'index', 'field', 'str'],
 		safeParseHex: ['source', 'index', 'field', 'str'],
 		safeParseNumber: ['source', 'index', 'field', 'str'],
+		sign: ['num'],
+		cmp: ['a','b'],
+		lt: ['a','b'],
+		le: ['a','b'],
+		gt: ['a','b'],
+		ge: ['a','b'],
+		eq: ['a','b'],
+		ne: ['a','b'],
+		min: ['a','b'],
+		max: ['a','b'],
 	},
 }
