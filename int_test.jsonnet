@@ -1,5 +1,8 @@
 local int = import 'int.libjsonnet';
 
+local BIG_INT_STR = "19000000000000000000";
+local BIG_NEG_STR = "-19000000000000000000";
+
 local test_MIN_SAFE_INTEGER() =
 	assert std.type(int.MIN_SAFE_INTEGER) == "number";
 	assert std.toString(int.MIN_SAFE_INTEGER) == "-9007199254740991";
@@ -33,6 +36,8 @@ local test_isUIntegerStr() =
 	assert !int.isUIntegerStr("");
 	assert !int.isUIntegerStr("1.2");
 	assert !int.isUIntegerStr("-1.2");
+	assert int.isUIntegerStr(BIG_INT_STR);
+	assert !int.isUIntegerStr(BIG_NEG_STR);
 	true;
 
 local test_isIntegerStr() =
@@ -45,6 +50,8 @@ local test_isIntegerStr() =
 	assert !int.isIntegerStr("");
 	assert !int.isIntegerStr("1.2");
 	assert !int.isIntegerStr("-1.2");
+	assert int.isIntegerStr(BIG_INT_STR);
+	assert int.isIntegerStr(BIG_NEG_STR);
 	true;
 
 local test_isNumberStr() =
@@ -57,6 +64,8 @@ local test_isNumberStr() =
 	assert int.isNumberStr("-1.2");
 	assert !int.isNumberStr("a");
 	assert !int.isNumberStr("");
+	assert int.isNumberStr(BIG_INT_STR);
+	assert int.isNumberStr(BIG_NEG_STR);
 	true;
 
 local test_isHexStr() =
@@ -117,6 +126,13 @@ local test_safeParseInteger() =
 	assert int.safeParseInteger("test",0,"f","Z") == {"errors":
 		[{"ERROR": "'integer' value 'Z' is not valid", "Field": "f", "Index": "0", "Source": "test"}],
 		"result": null};
+	assert int.safeParseInteger("test",0,"f","-0009007199254740992") == {"result": "-9007199254740992",
+		"errors": [{"Field": "f", "Index": "0", "Source": "test", "WARN":
+		"'integer' value '-0009007199254740992' cannot be safely represented as a number."}]};
+	assert int.safeParseInteger("test",0,"f","009007199254740992") == {"errors":
+		[{"Field": "f", "Index": "0", "Source": "test",
+		"WARN": "'integer' value '009007199254740992' cannot be safely represented as a number."}],
+		"result": "9007199254740992"};
 	true;
 
 local test_safeParseHex() =
@@ -198,6 +214,8 @@ local test_sign() =
 	assert std.assertEqual(int.sign('-5'), -1);
 	assert std.assertEqual(int.sign('0'), 0);
 	assert std.assertEqual(int.sign('5'), 1);
+	assert std.assertEqual(int.sign(BIG_INT_STR), 1);
+	assert std.assertEqual(int.sign(BIG_NEG_STR), -1);
 	true;
 
 local test_cmp() =
@@ -238,6 +256,9 @@ local test_cmp() =
 	assert std.assertEqual(int.cmp('-1',0), -1);
 	assert std.assertEqual(int.cmp(-1,'0'), -1);
 	assert std.assertEqual(int.cmp('-1','0'), -1);
+
+	assert std.assertEqual(int.cmp(BIG_INT_STR,BIG_NEG_STR), 1);
+	assert std.assertEqual(int.cmp(BIG_NEG_STR,BIG_INT_STR), -1);
 	true;
 
 local test_cmp2() =
@@ -247,36 +268,48 @@ local test_cmp2() =
 	assert !int.lt(1,1);
 	assert !int.lt(1,0);
 	assert int.lt(-1,0);
+	assert int.lt(BIG_NEG_STR,0);
+	assert !int.lt(BIG_INT_STR,0);
 
 	assert !int.le(0,-1);
 	assert int.le(0,1);
 	assert int.le(1,1);
 	assert !int.le(1,0);
 	assert int.le(-1,0);
+	assert int.le(BIG_NEG_STR,0);
+	assert !int.le(BIG_INT_STR,0);
 
 	assert int.gt(0,-1);
 	assert !int.gt(0,1);
 	assert !int.gt(1,1);
 	assert int.gt(1,0);
 	assert !int.gt(-1,0);
+	assert !int.gt(BIG_NEG_STR,0);
+	assert int.gt(BIG_INT_STR,0);
 
 	assert int.ge(0,-1);
 	assert !int.ge(0,1);
 	assert int.ge(1,1);
 	assert int.ge(1,0);
 	assert !int.ge(-1,0);
+	assert !int.ge(BIG_NEG_STR,0);
+	assert int.ge(BIG_INT_STR,0);
 
 	assert !int.eq(0,-1);
 	assert !int.eq(0,1);
 	assert int.eq(1,1);
 	assert !int.eq(1,0);
 	assert !int.eq(-1,0);
+	assert !int.eq(BIG_NEG_STR,0);
+	assert !int.eq(BIG_INT_STR,0);
 
 	assert int.ne(0,-1);
 	assert int.ne(0,1);
 	assert !int.ne(1,1);
 	assert int.ne(1,0);
 	assert int.ne(-1,0);
+	assert int.ne(BIG_NEG_STR,0);
+	assert int.ne(BIG_INT_STR,0);
 	true;
 
 local test_min() =
@@ -285,6 +318,8 @@ local test_min() =
 	assert std.assertEqual(int.min(0,1), 0);
 	assert std.assertEqual(int.min(-1,0), -1);
 	assert std.assertEqual(int.min(0,-1), -1);
+	assert std.assertEqual(int.min(BIG_NEG_STR,0), BIG_NEG_STR);
+	assert std.assertEqual(int.min(BIG_INT_STR,-1), -1);
 	true;
 
 local test_max() =
@@ -293,12 +328,84 @@ local test_max() =
 	assert std.assertEqual(int.max(0,1), 1);
 	assert std.assertEqual(int.max(-1,0), 0);
 	assert std.assertEqual(int.max(0,-1), 0);
+	assert std.assertEqual(int.max(BIG_NEG_STR,0), 0);
+	assert std.assertEqual(int.max(BIG_INT_STR,-1), BIG_INT_STR);
 	true;
+
+local test_splitSign() =
+	assert std.assertEqual(int.splitSign(-5), [-1,5]);
+	assert std.assertEqual(int.splitSign(0), [0,0]);
+	assert std.assertEqual(int.splitSign(5), [1,5]);
+	assert std.assertEqual(int.splitSign('-5'), [-1,'5']);
+	assert std.assertEqual(int.splitSign('0'), [0,'0']);
+	assert std.assertEqual(int.splitSign('5'), [1,'5']);
+	assert std.assertEqual(int.splitSign(BIG_NEG_STR), [-1,BIG_INT_STR]);
+	assert std.assertEqual(int.splitSign(BIG_INT_STR), [1,BIG_INT_STR]);
+	true;
+
+local test_toNumber() =
+	assert std.assertEqual(int.toNumber(-5), -5);
+	assert std.assertEqual(int.toNumber(0), 0);
+	assert std.assertEqual(int.toNumber(5), 5);
+	assert std.assertEqual(int.toNumber('-5'), -5);
+	assert std.assertEqual(int.toNumber('0'), 0);
+	assert std.assertEqual(int.toNumber('5'), 5);
+	assert std.assertEqual(int.toNumber('12.34'), 12.34);
+	true;
+
+local test_isInt64() =
+	assert int.isInt64(0);
+	assert int.isInt64('0');
+	assert int.isInt64(-9007199254740991);
+	assert int.isInt64(9007199254740991);
+	assert int.isInt64("-9223372036854775808");
+	assert int.isInt64("9223372036854775807");
+	assert !int.isInt64("-9223372036854775809");
+	assert !int.isInt64("9223372036854775808");
+	assert !int.isInt64(-9223372036854779000);
+	assert !int.isInt64(9223372036854779000);
+	true;
+
+local test_isUInt64() =
+	assert int.isUInt64(0);
+	assert int.isUInt64('0');
+	assert !int.isUInt64(-9007199254740991);
+	assert int.isUInt64(9007199254740991);
+	assert !int.isUInt64("-9223372036854775808");
+	assert int.isUInt64("9223372036854775807");
+	assert !int.isUInt64("-9223372036854775809");
+	assert int.isUInt64("9223372036854775808");
+	assert !int.isUInt64(-9223372036854779000);
+	assert int.isUInt64(9223372036854779000);
+	assert int.isUInt64("18446744073709551615");
+	assert !int.isUInt64("18446744073709551616");
+	true;
+
+local test_neg() =
+	assert std.assertEqual(int.neg(0), 0);
+	assert std.assertEqual(int.neg('0'), '0');
+	assert std.assertEqual(int.neg(-9007199254740991), 9007199254740991);
+	assert std.assertEqual(int.neg(9007199254740991), -9007199254740991);
+	assert std.assertEqual(int.neg("-9007199254740991"), "9007199254740991");
+	assert std.assertEqual(int.neg("9007199254740991"), "-9007199254740991");
+	true;
+
+local test_abs() =
+	assert std.assertEqual(int.abs(0), 0);
+	assert std.assertEqual(int.abs('0'), '0');
+	assert std.assertEqual(int.abs(-9007199254740991), 9007199254740991);
+	assert std.assertEqual(int.abs(9007199254740991), 9007199254740991);
+	assert std.assertEqual(int.abs("-9007199254740991"), "9007199254740991");
+	assert std.assertEqual(int.abs("9007199254740991"), "9007199254740991");
+	true;
+
+# TODO Test with really huge (and negative) ints that are the same when converted to numbers
 
 {
 	result:
 		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() && test_isUIntegerStr() &&
 		test_isIntegerStr() && test_isNumberStr() && test_isHexStr() && test_isNotHugeInt() &&
 		test_safeParseInteger() && test_safeParseHex() && test_safeParseNumber() && test_safeParseBoolean() &&
-		test_sign() && test_cmp() && test_cmp2() && test_min() && test_max()
+		test_sign() && test_cmp() && test_cmp2() && test_min() && test_max() && test_splitSign() &&
+		test_toNumber() && test_isInt64() && test_isUInt64() && test_neg() && test_abs()
 }
