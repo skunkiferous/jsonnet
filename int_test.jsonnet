@@ -399,8 +399,6 @@ local test_abs() =
 	assert std.assertEqual(int.abs("9007199254740991"), "9007199254740991");
 	true;
 
-# TODO Test with really huge (and negative) ints that are the same when converted to numbers
-
 {
 	result:
 		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() && test_isUIntegerStr() &&
