@@ -67,6 +67,50 @@ local pasreNumber(str) =
 	assert std.type(maybeNum) == 'number';
 	maybeNum;
 
+# Takes two unsigned integers as strings, and adds b to a.
+local addUIntStr(a,b) =
+    # Find length of both input and maximum
+    local al = std.length(a);
+    local bl = std.length(b);
+    local ml = std.max(al, bl);
+    # Pad both input to maximum
+    local pa = std.repeat('0', ml-al)+a;
+    local pb = std.repeat('0', ml-bl)+b;
+    # Break into character arrays (character is "one char string")
+    local ach = std.stringChars(pa);
+    local bch = std.stringChars(pb);
+    # Character CODE of 0
+    local zero = std.codepoint('0');
+    # We iterate backward over all indexes
+    local loop = std.reverse(std.range(0,ml-1));
+    #local zeroCh = std.char(zero);
+    #local str = std.join('', arr);
+    # Add one pair of digits, and combine with carry and result do far.
+    local addOne(carry_result,idx) =
+        local carry = carry_result[0];
+        local lastResult = carry_result[1];
+        # Compute "numbrical" digit of a
+        local ai = ach[idx];
+        local ad = std.codepoint(ai) - zero;
+        # Compute "numbrical" digit of b
+        local bi = bch[idx];
+        local bd = std.codepoint(bi) - zero;
+        # Add
+        local r = ad + bd + carry;
+        # Compute carry and new result
+        if r >= 10 then
+            [1,std.char((r%10) + zero)+lastResult]
+        else
+            [0,std.char(r + zero)+lastResult];
+    # Add all digits
+    std.foldl(addOne, loop, [0,''])[1];
+
+# Takes two unsigned integers as strings, and substract smaller from greater.
+local subUIntStr(greater,smaller) =
+	# TODO
+	assert false;
+	0;
+
 {
 	local int = self,
 	
@@ -88,6 +132,8 @@ local pasreNumber(str) =
 	MAX_UNSIGNED_INT64:: "18446744073709551615",
 
 	# If num is a string, converts it to a number, at the risk of loosing precising.
+	# WARNING: This function assume the str is a valid number. It will FAIL if not.
+	# Use safeParseNumber() or safeParseInteger() to parse raw user input.
 	toNumber(num)::
 		if std.type(num) == 'number' then
 			num
@@ -306,8 +352,72 @@ local pasreNumber(str) =
 		else
 			int.splitSign(num)[1],
 
-	# TODO: add adds big integers, even if they are strings
-	# TODO: sub substracts big integers, even if they are strings (use intNeg and intAdd for impl)
+	local toNumberStr(num) =
+		if std.type(num) == 'string' then
+			num
+		else
+			std.toString(num),
+
+	# Takes two unsigned integers, and adds b to a.
+	local doAdd(a,b) =
+		local an = int.toNumber(a);
+		local bn = int.toNumber(b);
+		local ab = an + bn;
+		if int.isNotHugeInt(ab) then
+			ab
+		else
+			addUIntStr(toNumberStr(a),toNumberStr(b)),
+
+	# Takes two unsigned integers, and substract b from a.
+	local doSub(a,b) =
+		local an = int.toNumber(a);
+		local bn = int.toNumber(b);
+		local ab = an - bn;
+		if int.isNotHugeInt(a) && int.isNotHugeInt(b) && int.isNotHugeInt(ab) then
+			ab
+		else
+			local as = toNumberStr(a);
+			local bs = toNumberStr(b);
+			if int.ge(a, b) then
+				subUIntStr(as,bs)
+			else
+				int.neg(subUIntStr(bs,as)),
+
+	# Takes two integers, and adds b to a.
+	add(a,b)::
+		local aTmp = int.splitSign(a);
+		local aSign = aTmp[0];
+		local aUns = aTmp[1];
+		local bTmp = int.splitSign(b);
+		local bSign = bTmp[0];
+		local bUns = bTmp[1];
+		if aSign == 0 then
+			b
+		else if bSign == 0 then
+			a
+		else if aSign == bSign then
+			if aSign == 1 then doAdd(a,b) else int.neg(doAdd(aUns,bUns))
+		else
+			# Signs are different, so it's actually a substraction
+			if aSign == 1 then doSub(a,bUns) else doSub(b,aUns),
+
+	# Takes two integers, and substract b from a.
+	sub(a,b)::
+		local aTmp = int.splitSign(a);
+		local aSign = aTmp[0];
+		local aUns = aTmp[1];
+		local bTmp = int.splitSign(b);
+		local bSign = bTmp[0];
+		local bUns = bTmp[1];
+		if aSign == 0 then
+			int.neg(b)
+		else if bSign == 0 then
+			a
+		else if aSign == bSign then
+			if aSign == 1 then doSub(a,b) else int.neg(doAdd(aUns,bUns))
+		else
+			# Signs are different, so it's actually an addition
+			if aSign == 1 then doAdd(a,bUns) else doAdd(aUns,b),
 	
 	# All functions in the library, with their parameter names
 	FUNCS:: {
@@ -337,5 +447,7 @@ local pasreNumber(str) =
 		isUInt64: ['num'],
 		neg: ['num'],
 		abs: ['num'],
+		add: ['a','b'],
+		sub: ['a','b'],
 	},
 }

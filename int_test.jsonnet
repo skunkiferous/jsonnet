@@ -399,11 +399,22 @@ local test_abs() =
 	assert std.assertEqual(int.abs("9007199254740991"), "9007199254740991");
 	true;
 
+local test_add() =
+	assert std.assertEqual(int.add(1,2), 3);
+	assert std.assertEqual(int.add(1,"9223372036854775806"), "9223372036854775807");
+	assert std.assertEqual(int.add("4611686018427387903","4611686018427387903"),
+		"9223372036854775806");
+	assert std.assertEqual(int.add(-1,"-9223372036854775807"), "-9223372036854775808");
+	assert std.assertEqual(int.add("-4611686018427387904","-4611686018427387904"),
+		"-9223372036854775808");
+	true;
+
 {
 	result:
-		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() && test_isUIntegerStr() &&
-		test_isIntegerStr() && test_isNumberStr() && test_isHexStr() && test_isNotHugeInt() &&
-		test_safeParseInteger() && test_safeParseHex() && test_safeParseNumber() && test_safeParseBoolean() &&
-		test_sign() && test_cmp() && test_cmp2() && test_min() && test_max() && test_splitSign() &&
-		test_toNumber() && test_isInt64() && test_isUInt64() && test_neg() && test_abs()
+		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() &&
+		test_isUIntegerStr() && test_isIntegerStr() && test_isNumberStr() && test_isHexStr() &&
+		test_isNotHugeInt() && test_safeParseInteger() && test_safeParseHex() &&
+		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
+		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
+		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add()
 }
