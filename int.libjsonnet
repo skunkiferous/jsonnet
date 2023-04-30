@@ -61,7 +61,7 @@ local skipZerosOfNumberStr(str) =
 	else
 		cleaned;
 
-# Parse a string into a number, skipping unneeded zeros (cause error in std.parseJson(num)! )
+# Parse a string into a number, stripping unneeded zeros (cause error in std.parseJson(num)! )
 local pasreNumber(str) =
 	local maybeNum = std.parseJson(skipZerosOfNumberStr(str));
 	assert std.type(maybeNum) == 'number';
@@ -76,40 +76,67 @@ local addUIntStr(a,b) =
     # Pad both input to maximum
     local pa = std.repeat('0', ml-al)+a;
     local pb = std.repeat('0', ml-bl)+b;
-    # Break into character arrays (character is "one char string")
-    local ach = std.stringChars(pa);
-    local bch = std.stringChars(pb);
+    # Break into character arrays
+    local ach = std.encodeUTF8(pa);
+    local bch = std.encodeUTF8(pb);
     # Character CODE of 0
     local zero = std.codepoint('0');
     # We iterate backward over all indexes
     local loop = std.reverse(std.range(0,ml-1));
-    #local zeroCh = std.char(zero);
-    #local str = std.join('', arr);
     # Add one pair of digits, and combine with carry and result do far.
     local addOne(carry_result,idx) =
         local carry = carry_result[0];
         local lastResult = carry_result[1];
-        # Compute "numbrical" digit of a
-        local ai = ach[idx];
-        local ad = std.codepoint(ai) - zero;
-        # Compute "numbrical" digit of b
-        local bi = bch[idx];
-        local bd = std.codepoint(bi) - zero;
+        # Compute "numerical" digit of a
+        local ad = ach[idx] - zero;
+        # Compute "numerical" digit of b
+        local bd = bch[idx] - zero;
         # Add
         local r = ad + bd + carry;
         # Compute carry and new result
         if r >= 10 then
-            [1,std.char((r%10) + zero)+lastResult]
+            [1,[(r%10) + zero]+lastResult]
         else
-            [0,std.char(r + zero)+lastResult];
-    # Add all digits
-    std.foldl(addOne, loop, [0,''])[1];
+            [0,[r + zero]+lastResult];
+    # Join all digits
+    skipZerosOfNumberStr(std.decodeUTF8(std.foldl(addOne, loop, [0,[]])[1]));
 
 # Takes two unsigned integers as strings, and substract smaller from greater.
 local subUIntStr(greater,smaller) =
-	# TODO
-	assert false;
-	0;
+	local a = greater;
+	local b = smaller;
+    # Find length of both input and maximum
+    local al = std.length(a);
+    local bl = std.length(b);
+    local ml = std.max(al, bl);
+    # Pad both input to maximum
+    local pa = std.repeat('0', ml-al)+a;
+    local pb = std.repeat('0', ml-bl)+b;
+    # Break into character arrays
+    local ach = std.encodeUTF8(pa);
+    local bch = std.encodeUTF8(pb);
+    # Character CODE of 0
+    local zero = std.codepoint('0');
+    # We iterate over all indexes
+    local loop = std.range(1,ml);
+    # Add one pair of digits, and combine with carry and result do far.
+    local subOne(carry_result,idx) =
+        local carry = carry_result[0];
+        local lastResult = carry_result[1];
+		local idx2 = ml - idx;
+        # Compute "numreical" digit of a
+        local ad = ach[idx2] - zero;
+        # Compute "numerical" digit of b
+        local bd = bch[idx2] - zero;
+        # Sub
+        local r = ad - bd - carry;
+        # Compute carry and new result
+        if r < 0 then
+            [1,[r + 10 + zero]+lastResult]
+        else
+            [0,[r + zero]+lastResult];
+    # Join all digits
+    skipZerosOfNumberStr(std.decodeUTF8(std.foldl(subOne, loop, [0,[]])[1]));
 
 {
 	local int = self,
@@ -205,6 +232,16 @@ local subUIntStr(greater,smaller) =
 		(std.type(num) == "number") && int.isIntegerStr(std.toString(num)) &&
 			(num >= int.MIN_SAFE_INTEGER) && (num <= int.MAX_SAFE_INTEGER),
 
+	# Convert an integer back to a number if possible
+	local intToNumberSafe(num) =
+		if std.type(num) == 'number' then
+			num
+		else
+			local cleaned = skipZerosOfNumberStr(num);
+			local num2 = std.parseJson(cleaned);
+			assert std.type(num2) == 'number';
+			if (num2 >= int.MIN_SAFE_INTEGER) && (num2 <= int.MAX_SAFE_INTEGER) then num2 else cleaned,
+
 	# *Safely* parse a integer value. Returns an object like { result: VALUE, errors: [] }
 	# "result" is null and errors contains error message(s) if str is not a valid value.
 	# "str" is potentially too "big" to be correctly represented with a "number".
@@ -265,7 +302,7 @@ local subUIntStr(greater,smaller) =
 		local num2 = int.toNumber(num);
 		local sign = std.sign(num2);
 		if sign >= 0 then
-			[sign, num]
+			if isNum then [sign, num] else [sign, skipZerosOfNumberStr(num)]
 		else if isNum then
 			[sign, -num]
 		else
@@ -384,7 +421,7 @@ local subUIntStr(greater,smaller) =
 				int.neg(subUIntStr(bs,as)),
 
 	# Takes two integers, and adds b to a.
-	add(a,b)::
+	local add2(a,b) =
 		local aTmp = int.splitSign(a);
 		local aSign = aTmp[0];
 		local aUns = aTmp[1];
@@ -401,8 +438,12 @@ local subUIntStr(greater,smaller) =
 			# Signs are different, so it's actually a substraction
 			if aSign == 1 then doSub(a,bUns) else doSub(b,aUns),
 
+	# Takes two integers, and adds b to a.
+	add(a,b)::
+		intToNumberSafe(add2(a,b)),
+
 	# Takes two integers, and substract b from a.
-	sub(a,b)::
+	local sub2(a,b) =
 		local aTmp = int.splitSign(a);
 		local aSign = aTmp[0];
 		local aUns = aTmp[1];
@@ -414,11 +455,15 @@ local subUIntStr(greater,smaller) =
 		else if bSign == 0 then
 			a
 		else if aSign == bSign then
-			if aSign == 1 then doSub(a,b) else int.neg(doAdd(aUns,bUns))
+			if aSign == 1 then doSub(a,b) else doSub(bUns,aUns)
 		else
 			# Signs are different, so it's actually an addition
-			if aSign == 1 then doAdd(a,bUns) else doAdd(aUns,b),
-	
+			if aSign == 1 then doAdd(a,bUns) else int.neg(doAdd(aUns,b)),
+
+	# Takes two integers, and substract b from a.
+	sub(a,b)::
+		intToNumberSafe(sub2(a,b)),
+
 	# All functions in the library, with their parameter names
 	FUNCS:: {
 		isBooleanStr: ['str'],

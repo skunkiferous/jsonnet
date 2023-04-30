@@ -400,6 +400,12 @@ local test_abs() =
 	true;
 
 local test_add() =
+	assert std.assertEqual(int.add(0,1), 1);
+	assert std.assertEqual(int.add(1,0), 1);
+	assert std.assertEqual(int.add(0,-1), -1);
+	assert std.assertEqual(int.add(-1,0), -1);
+	assert std.assertEqual(int.add(-1,2), 1);
+	assert std.assertEqual(int.add(1,-2), -1);
 	assert std.assertEqual(int.add(1,2), 3);
 	assert std.assertEqual(int.add(1,"9223372036854775806"), "9223372036854775807");
 	assert std.assertEqual(int.add("4611686018427387903","4611686018427387903"),
@@ -407,6 +413,24 @@ local test_add() =
 	assert std.assertEqual(int.add(-1,"-9223372036854775807"), "-9223372036854775808");
 	assert std.assertEqual(int.add("-4611686018427387904","-4611686018427387904"),
 		"-9223372036854775808");
+	assert std.assertEqual(int.add("4611686018427387903","-4611686018427387903"), 0);
+	true;
+
+local test_sub() =
+	assert std.assertEqual(int.sub(0,1), -1);
+	assert std.assertEqual(int.sub(1,0), 1);
+	assert std.assertEqual(int.sub(0,-1), 1);
+	assert std.assertEqual(int.sub(-1,0), -1);
+	assert std.assertEqual(int.sub(-1,2), -3);
+	assert std.assertEqual(int.sub(1,-2), 3);
+	assert std.assertEqual(int.sub(1,2), -1);
+	assert std.assertEqual(int.sub(3,2), 1);
+	assert std.assertEqual(int.sub(1,"9223372036854775806"), "-9223372036854775805");
+	assert std.assertEqual(int.sub("4611686018427387903","4611686018427387903"), 0);
+	assert std.assertEqual(int.sub(-1,"-9223372036854775807"), "9223372036854775806");
+	assert std.assertEqual(int.sub("-4611686018427387904","-4611686018427387904"), 0);
+	assert std.assertEqual(int.sub("4611686018427387903","-4611686018427387903"),
+		"9223372036854775806");
 	true;
 
 {
@@ -416,5 +440,5 @@ local test_add() =
 		test_isNotHugeInt() && test_safeParseInteger() && test_safeParseHex() &&
 		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
 		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
-		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add()
+		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub()
 }
