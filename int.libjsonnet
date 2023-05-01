@@ -514,6 +514,10 @@ local multUIntStr(a,b) =
 		local ab = an * bn;
 		if int.isNotHugeInt(ab) then
 			ab
+		else if an == 1 then
+			b
+		else if bn == 1 then
+			a
 		else
 			multUIntStr(toNumberStr(a),toNumberStr(b)),
 

@@ -440,6 +440,10 @@ local test_mult() =
 	assert std.assertEqual(int.mult(2,-1), -2);
 	assert std.assertEqual(int.mult(-2,1), -2);
 	assert std.assertEqual(int.mult(-2,-1), 2);
+	assert std.assertEqual(int.mult(2,3), 6);
+	assert std.assertEqual(int.mult(2,-3), -6);
+	assert std.assertEqual(int.mult(-2,3), -6);
+	assert std.assertEqual(int.mult(-2,-3), 6);
 	assert std.assertEqual(int.mult("4611686018427387904",2), "9223372036854775808");
 	assert std.assertEqual(int.mult("-4611686018427387904",2), "-9223372036854775808");
 	assert std.assertEqual(int.mult("4611686018427387904",-2), "-9223372036854775808");
