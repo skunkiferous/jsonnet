@@ -12,6 +12,9 @@ local SEP = ".";
 local INT_CHARS = "0123456789";
 local HEX_CHARS = "0123456789abcdefABCDEF";
 
+# Character CODE of 0
+local ZERO = std.codepoint('0');
+
 # Compares two integers that have the same, non-zero sign, and are strings.
 local cmpStr(a,b,negative) =
 	if a == b then
@@ -79,8 +82,6 @@ local addUIntStr(a,b) =
     # Break into character arrays
     local ach = std.encodeUTF8(pa);
     local bch = std.encodeUTF8(pb);
-    # Character CODE of 0
-    local zero = std.codepoint('0');
     # We iterate backward over all indexes
     local loop = std.reverse(std.range(0,ml-1));
     # Add one pair of digits, and combine with carry and result do far.
@@ -88,16 +89,16 @@ local addUIntStr(a,b) =
         local carry = carry_result[0];
         local lastResult = carry_result[1];
         # Compute "numerical" digit of a
-        local ad = ach[idx] - zero;
+        local ad = ach[idx] - ZERO;
         # Compute "numerical" digit of b
-        local bd = bch[idx] - zero;
+        local bd = bch[idx] - ZERO;
         # Add
         local r = ad + bd + carry;
         # Compute carry and new result
         if r >= 10 then
-            [1,[(r%10) + zero]+lastResult]
+            [1,[(r%10) + ZERO]+lastResult]
         else
-            [0,[r + zero]+lastResult];
+            [0,[r + ZERO]+lastResult];
     # Join all digits
     skipZerosOfNumberStr(std.decodeUTF8(std.foldl(addOne, loop, [0,[]])[1]));
 
@@ -115,8 +116,6 @@ local subUIntStr(greater,smaller) =
     # Break into character arrays
     local ach = std.encodeUTF8(pa);
     local bch = std.encodeUTF8(pb);
-    # Character CODE of 0
-    local zero = std.codepoint('0');
     # We iterate over all indexes
     local loop = std.range(1,ml);
     # Add one pair of digits, and combine with carry and result do far.
@@ -125,18 +124,62 @@ local subUIntStr(greater,smaller) =
         local lastResult = carry_result[1];
 		local idx2 = ml - idx;
         # Compute "numreical" digit of a
-        local ad = ach[idx2] - zero;
+        local ad = ach[idx2] - ZERO;
         # Compute "numerical" digit of b
-        local bd = bch[idx2] - zero;
+        local bd = bch[idx2] - ZERO;
         # Sub
         local r = ad - bd - carry;
         # Compute carry and new result
         if r < 0 then
-            [1,[r + 10 + zero]+lastResult]
+            [1,[r + 10 + ZERO]+lastResult]
         else
-            [0,[r + zero]+lastResult];
+            [0,[r + ZERO]+lastResult];
     # Join all digits
     skipZerosOfNumberStr(std.decodeUTF8(std.foldl(subOne, loop, [0,[]])[1]));
+
+# Compute "numerical" digits
+local ch2d(ch) =
+	ch - ZERO;
+
+# Compute "charcter" digits
+local d2ch(d) =
+	d + ZERO;
+
+# Takes two unsigned integers as strings, and multiplies a by b.
+local multUIntStr(a,b) =
+    # Find length of both input and maximum
+    local al = std.length(a);
+    local bl = std.length(b);
+    local ml = std.max(al, bl);
+    # Pad both input to maximum
+    # Break into character arrays
+    # Compute "numerical" digits
+    local ad = std.map(ch2d, std.reverse(std.encodeUTF8(a)));
+    local bd = std.map(ch2d, std.reverse(std.encodeUTF8(b)));
+	# Starter value for "carry" array
+	local resLen = al+bl;
+	local cZero = std.repeat([0], resLen);
+	# Indexes for inner loop
+	local innerIdx = std.range(0,al-1);
+	# Inner loop
+	local innerLoop(cd,i) =
+		# Content of inner loop
+		local inner(tmp,j) =
+			local carry = tmp[0];
+			local newC = tmp[1];
+			local t =  (ad[j] * bd[i]) + cd[i+j] + carry;
+			local newCarry = std.floor(t/10);
+			local newcIJ = t % 10;
+			[newCarry, [newcIJ]+newC];
+		local newCPart = std.foldl(inner, innerIdx, [0,[]])[1];
+		local cBefore = if i > 0 then cd[0:(i-1)] else [];
+		local cAfter = if i < ml-1 then cd[(i+ml):resLen] else [];
+		cAfter + newCPart + cBefore;
+	local digits = std.foldl(innerLoop, std.range(0,bl-1), cZero);
+	# Compute "charcter" digits
+	local digitsCh = std.map(d2ch, digits);
+    # Join all digits
+    skipZerosOfNumberStr(std.decodeUTF8(digitsCh));
 
 {
 	local int = self,
@@ -299,7 +342,7 @@ local subUIntStr(greater,smaller) =
 	splitSign(num)::
 		# Assume num is an integer as string, if not a number ...
 		local isNum = std.type(num) == "number";
-		local num2 = int.toNumber(num);
+		local num2 = if isNum then num else pasreNumber(num);
 		local sign = std.sign(num2);
 		if sign >= 0 then
 			if isNum then [sign, num] else [sign, skipZerosOfNumberStr(num)]
@@ -464,6 +507,38 @@ local subUIntStr(greater,smaller) =
 	sub(a,b)::
 		intToNumberSafe(sub2(a,b)),
 
+	# Takes two integers, and multiplies a and b.
+	local doMult(a,b) =
+		local an = int.toNumber(a);
+		local bn = int.toNumber(b);
+		local ab = an * bn;
+		if int.isNotHugeInt(ab) then
+			ab
+		else
+			multUIntStr(toNumberStr(a),toNumberStr(b)),
+
+	# Takes two integers, and multiplies a and b.
+	local mult2(a,b) =
+		local aTmp = int.splitSign(a);
+		local aSign = aTmp[0];
+		local aUns = aTmp[1];
+		local bTmp = int.splitSign(b);
+		local bSign = bTmp[0];
+		local bUns = bTmp[1];
+		local unsRes = doMult(aUns,bUns);
+		if (aSign == 0) || (bSign == 0) then
+			0
+		else if aSign == bSign then
+			# + * + == +, - * - == +
+			doMult(aUns,bUns)
+		else
+			# + * - == - * + == -
+			int.neg(doMult(aUns,bUns)),
+
+	# Takes two integers, and multiplies a and b.
+	mult(a,b)::
+		intToNumberSafe(mult2(a,b)),
+
 	# All functions in the library, with their parameter names
 	FUNCS:: {
 		isBooleanStr: ['str'],
@@ -494,5 +569,6 @@ local subUIntStr(greater,smaller) =
 		abs: ['num'],
 		add: ['a','b'],
 		sub: ['a','b'],
+		mult: ['a','b'],
 	},
 }

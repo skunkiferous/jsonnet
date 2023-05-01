@@ -433,6 +433,19 @@ local test_sub() =
 		"9223372036854775806");
 	true;
 
+local test_mult() =
+	assert std.assertEqual(int.mult(0,1), 0);
+	assert std.assertEqual(int.mult(1,0), 0);
+	assert std.assertEqual(int.mult(1,2), 2);
+	assert std.assertEqual(int.mult(2,-1), -2);
+	assert std.assertEqual(int.mult(-2,1), -2);
+	assert std.assertEqual(int.mult(-2,-1), 2);
+	assert std.assertEqual(int.mult("4611686018427387904",2), "9223372036854775808");
+	assert std.assertEqual(int.mult("-4611686018427387904",2), "-9223372036854775808");
+	assert std.assertEqual(int.mult("4611686018427387904",-2), "-9223372036854775808");
+	assert std.assertEqual(int.mult("-4611686018427387904",-2), "9223372036854775808");
+	true;
+
 {
 	result:
 		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() &&
@@ -440,5 +453,6 @@ local test_sub() =
 		test_isNotHugeInt() && test_safeParseInteger() && test_safeParseHex() &&
 		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
 		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
-		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub()
+		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub() &&
+		test_mult()
 }
