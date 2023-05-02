@@ -444,10 +444,25 @@ local test_mult() =
 	assert std.assertEqual(int.mult(2,-3), -6);
 	assert std.assertEqual(int.mult(-2,3), -6);
 	assert std.assertEqual(int.mult(-2,-3), 6);
+	assert std.assertEqual(int.mult(11,22), 242);
+	assert std.assertEqual(int.mult(2,"10000000000004321"), "20000000000008642");
 	assert std.assertEqual(int.mult("4611686018427387904",2), "9223372036854775808");
 	assert std.assertEqual(int.mult("-4611686018427387904",2), "-9223372036854775808");
 	assert std.assertEqual(int.mult("4611686018427387904",-2), "-9223372036854775808");
 	assert std.assertEqual(int.mult("-4611686018427387904",-2), "9223372036854775808");
+	assert std.assertEqual(int.mult(134572,134572), 18109623184);
+	assert std.assertEqual(int.mult(135168,135168), 18270388224);
+	assert std.assertEqual(int.mult(4294967295,4294967295), "18446744065119617025");
+	true;
+
+local test_divmod() =
+	assert std.assertEqual(int.divmod(-1,0), null);
+	assert std.assertEqual(int.divmod(0,0), null);
+	assert std.assertEqual(int.divmod(1,0), null);
+	assert std.assertEqual(int.divmod(0,1), [0,0]);
+	assert std.assertEqual(int.divmod(2,1), [2,0]);
+	assert std.assertEqual(int.divmod(3,2), [1,1]);
+	assert std.assertEqual(int.divmod("9223372036854775808",2), ["4611686018427387904",0]);
 	true;
 
 {
@@ -458,5 +473,5 @@ local test_mult() =
 		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
 		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
 		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub() &&
-		test_mult()
+		test_mult() && test_divmod()
 }

@@ -148,15 +148,16 @@ local d2ch(d) =
 # Takes two unsigned integers as strings, and multiplies a by b.
 local multUIntStr(a,b) =
     # Find length of both input and maximum
-    local al = std.length(a);
-    local bl = std.length(b);
+    local al = std.length(a)+1;
+    local bl = std.length(b)+1;
     local ml = std.max(al, bl);
     # Pad both input to maximum
     # Break into character arrays
     # Compute "numerical" digits
-    local ad = std.map(ch2d, std.reverse(std.encodeUTF8(a)));
-    local bd = std.map(ch2d, std.reverse(std.encodeUTF8(b)));
+    local ad = std.map(ch2d, std.reverse(std.encodeUTF8('0'+a)));
+    local bd = std.map(ch2d, std.reverse(std.encodeUTF8('0'+b)));
 	# Starter value for "carry" array
+	#local resLen = std.trace("multUIntStr"+std.toString([a,b])+std.toString({ad:ad,bd:bd}), al+bl);
 	local resLen = al+bl;
 	local cZero = std.repeat([0], resLen);
 	# Indexes for inner loop
@@ -170,14 +171,20 @@ local multUIntStr(a,b) =
 			local t =  (ad[j] * bd[i]) + cd[i+j] + carry;
 			local newCarry = std.floor(t/10);
 			local newcIJ = t % 10;
-			[newCarry, [newcIJ]+newC];
+			[newCarry, newC+[newcIJ]];
 		local newCPart = std.foldl(inner, innerIdx, [0,[]])[1];
-		local cBefore = if i > 0 then cd[0:(i-1)] else [];
-		local cAfter = if i < ml-1 then cd[(i+ml):resLen] else [];
-		cAfter + newCPart + cBefore;
+		local cBefore = cd[0:i];
+		local cAfter = cd[(std.length(cBefore)+std.length(newCPart)):resLen];
+		local result = cBefore + newCPart + cAfter;
+		result;
+		#std.trace("innerLoop(cd,i):"+std.toString({
+		#	cAfter: cAfter, newCPart: newCPart, cBefore: cBefore, cd: cd, i: i, ml: ml, al: al,
+		#	bl: bl, resLen: resLen, "len(cBefore)":std.length(cBefore), result: result,
+		#	"len(newCPart)":std.length(newCPart),"len(cAfter)":std.length(cAfter)
+		#}), result);
 	local digits = std.foldl(innerLoop, std.range(0,bl-1), cZero);
 	# Compute "charcter" digits
-	local digitsCh = std.map(d2ch, digits);
+	local digitsCh = std.reverse(std.map(d2ch, digits));
     # Join all digits
     skipZerosOfNumberStr(std.decodeUTF8(digitsCh));
 
@@ -507,6 +514,21 @@ local multUIntStr(a,b) =
 	sub(a,b)::
 		intToNumberSafe(sub2(a,b)),
 
+	# Divide integer by 10
+	local div10(n) =
+		if std.type(n) == 'string' then std.substr(n, 0, std.length(n)-1) else std.floor(n / 10),
+
+	# Multiplies integer by 10
+	local mult10(n) =
+		if std.type(n) == 'string' then
+			n+'0'
+		else
+			local result = n * 10;
+			if int.isNotHugeInt(result) then
+				result
+			else
+				std.toString(n)+'0',
+
 	# Takes two integers, and multiplies a and b.
 	local doMult(a,b) =
 		local an = int.toNumber(a);
@@ -519,7 +541,19 @@ local multUIntStr(a,b) =
 		else if bn == 1 then
 			a
 		else
-			multUIntStr(toNumberStr(a),toNumberStr(b)),
+			local as = toNumberStr(a);
+			local bs = toNumberStr(b);
+			if std.stripChars(as, '0') == '1' then
+				# Speical case for 100... * b (optimized for euclide)
+				assert std.startsWith(as, '1');
+				bs + std.substr(as, 1, std.length(as)-1)
+			else
+				if std.stripChars(bs, '0') == '1' then
+					# Speical case for a * 100... (optimized for euclide)
+					assert std.startsWith(bs, '1');
+					as + std.substr(bs, 1, std.length(bs)-1)
+				else
+					multUIntStr(as,bs),
 
 	# Takes two integers, and multiplies a and b.
 	local mult2(a,b) =
@@ -529,7 +563,6 @@ local multUIntStr(a,b) =
 		local bTmp = int.splitSign(b);
 		local bSign = bTmp[0];
 		local bUns = bTmp[1];
-		local unsRes = doMult(aUns,bUns);
 		if (aSign == 0) || (bSign == 0) then
 			0
 		else if aSign == bSign then
@@ -542,6 +575,61 @@ local multUIntStr(a,b) =
 	# Takes two integers, and multiplies a and b.
 	mult(a,b)::
 		intToNumberSafe(mult2(a,b)),
+
+
+	# Takes two positive integers strings, divides a by b, and returns [quotient, remainder].
+	local euclide(a,bbbbbb) =
+		local b = std.trace("euclide"+std.toString([a,bbbbbb]), bbbbbb);
+		# We need division to implement division! But x/10 can be implemented without / ...
+		local newN2(ax,n) = if int.le(int.mult(b, n), ax) then newN2(ax,mult10(n)) else n;
+		local newN(ax,n) = div10(newN2(ax,n));
+		local newQR2(bn,nx,qx,rx) =
+			if int.ge(rx, bn) then
+				newQR2(bn,nx,int.add(qx,nx),int.sub(rx,bn))
+			else
+				[qx,rx];
+		local newQR(nx,qx,rx) = newQR2(int.mult(b, nx),nx,qx,rx);
+		local loop(ax,nx,qx,rx) =
+			if int.ge(rx, b) then
+				local qxrx = newQR(newN(ax,nx),qx,rx);
+				loop(qxrx[1],1,qxrx[0],qxrx[1])
+			else
+				[qx,rx];
+		loop(a,1,0,a),
+
+	# Takes two positive integers, divides a by b, and returns [quotient, remainder].
+	local doDivmod(a,b) =
+		local an = int.toNumber(a);
+		local bn = int.toNumber(b);
+		if int.isNotHugeInt(a) && int.isNotHugeInt(b) then
+			[std.floor(an / bn), an % bn]
+		else if bn == 1 then
+			[a, 0]
+		else
+			euclide(toNumberStr(a),toNumberStr(b)),
+
+	# Takes two integers, divides a by b, and returns [quotient, remainder], or null if b is 0 (NaN)
+	divmod(a,b)::
+		local bTmp = int.splitSign(b);
+		local bSign = bTmp[0];
+		if bSign == 0 then
+			# NaN
+			null
+		else
+			local aTmp = int.splitSign(a);
+			local aSign = aTmp[0];
+			if aSign == 0 then
+				[0,0]
+			else
+				local aUns = aTmp[1];
+				local bUns = bTmp[1];
+				local unsRes = doDivmod(aUns,bUns);
+				if aSign == bSign then
+					# + / + == +, - / - == +
+					unsRes
+				else
+					# + / - == - / + == -
+					[int.neg(unsRes[0]),unsRes[1]],
 
 	# All functions in the library, with their parameter names
 	FUNCS:: {
@@ -574,5 +662,6 @@ local multUIntStr(a,b) =
 		add: ['a','b'],
 		sub: ['a','b'],
 		mult: ['a','b'],
+		divmod: ['a','b'],
 	},
 }
