@@ -414,6 +414,7 @@ local test_add() =
 	assert std.assertEqual(int.add("-4611686018427387904","-4611686018427387904"),
 		"-9223372036854775808");
 	assert std.assertEqual(int.add("4611686018427387903","-4611686018427387903"), 0);
+	assert std.assertEqual(int.add("9900000000000000",7199254740991), "9907199254740991");
 	true;
 
 local test_sub() =
@@ -462,6 +463,7 @@ local test_divmod() =
 	assert std.assertEqual(int.divmod(0,1), [0,0]);
 	assert std.assertEqual(int.divmod(2,1), [2,0]);
 	assert std.assertEqual(int.divmod(3,2), [1,1]);
+	assert std.assertEqual(int.divmod(245,22), [11,3]);
 	assert std.assertEqual(int.divmod("9223372036854775808",2), ["4611686018427387904",0]);
 	true;
 

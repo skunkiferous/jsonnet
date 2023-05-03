@@ -62,6 +62,101 @@ local makeObjectKeepX(keys,values,offset) =
 	else
 		makeObjectKeep5(keys,values,offset) + makeObjectKeepX(keys,values,offset+5);
 
+# Calls "work" up to 10 times before returning.
+local doWhile0(cond,work,init) =
+	if cond(init) then
+		local w0 = work(init);
+		if cond(w0) then
+			local w1 = work(w0);
+			if cond(w1) then
+				local w2 = work(w1);
+				if cond(w2) then
+					local w3 = work(w2);
+					if cond(w3) then
+						local w4 = work(w3);
+						if cond(w4) then
+							local w5 = work(w4);
+							if cond(w5) then
+								local w6 = work(w5);
+								if cond(w6) then
+									local w7 = work(w6);
+									if cond(w7) then
+										local w8 = work(w7);
+										if cond(w8) then
+											[true,work(w8)]
+										else
+											[false,w8]
+									else
+										[false,w7]
+								else
+									[false,w6]
+							else
+								[false,w5]
+						else
+							[false,w4]
+					else
+						[false,w3]
+				else
+					[false,w2]
+			else
+				[false,w1]
+		else
+			[false,w0]
+	else
+		[false,init];
+
+# Calls "dw" up to 10 times before returning.
+local doWhileX(cond,work,init,dw) =
+	local w0 = dw(cond,work,init);
+	if w0[0] then
+		local w1 = dw(cond,work,w0[1]);
+		if w1[0] then
+			local w2 = dw(cond,work,w1[1]);
+			if w2[0] then
+				local w3 = dw(cond,work,w2[1]);
+				if w3[0] then
+					local w4 = dw(cond,work,w3[1]);
+					if w4[0] then
+						local w5 = dw(cond,work,w4[1]);
+						if w5[0] then
+							local w6 = dw(cond,work,w5[1]);
+							if w6[0] then
+								local w7 = dw(cond,work,w6[1]);
+								if w7[0] then
+									local w8 = dw(cond,work,w7[1]);
+									if w8[0] then
+										dw(cond,work,w8[1])
+									else
+										w8
+								else
+									w7
+							else
+								w6
+						else
+							w5
+					else
+						w4
+				else
+					w3
+			else
+				w2
+		else
+			w1
+	else
+		w0;
+
+# Calls "doWhile0" up to 10 times before returning.
+local doWhile1(cond,work,init) =
+	doWhileX(cond,work,init,doWhile0);
+
+# Calls "doWhile1" up to 10 times before returning.
+local doWhile2(cond,work,init) =
+	doWhileX(cond,work,init,doWhile1);
+
+# Calls "doWhile2" up to 10 times before returning.
+local doWhile3(cond,work,init) =
+	doWhileX(cond,work,init,doWhile2);
+
 {
 	local utl = self,
 	
@@ -163,6 +258,20 @@ local makeObjectKeepX(keys,values,offset) =
 			if inFront then ext + str else str + ext
 		else
 			str,
+	
+	# Simulates a "while loop". While loops should be implemented using recursion, but because there
+	# is not tail-call-optimisation, longer/deeper while loops fail with stack overflow.
+	# This function tries to work around the limit by reducing, but not eliminiting, recursion.
+	# "cond" is a function that takes "init", or the result of "work", and returns true if we should
+	# call work again. "work" is a function that takes "init", or it's own last output, and produce
+	# a new output. "init" is the initial input to "cond" and "work". Either returns the last output
+	# of "work", or "init", if "cond(init)" returneed false.
+	while(cond,work,init)::
+		local w = doWhile3(cond,work,init);
+		if w[0] then
+			utl.while(cond,work,w[1])
+		else
+			w[1],
 
 	# All functions in the library, with their parameter names
 	FUNCS:: {
@@ -175,5 +284,6 @@ local makeObjectKeepX(keys,values,offset) =
 		object2Array: ['obj', 'default?'],
 		makeObject: ['keys', 'values','keepNullValues?'],
 		extendStr: ['str','newLen','fill','inFront'],
+		while: ['cond','work','init'],
 	},
 }

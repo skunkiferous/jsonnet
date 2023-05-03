@@ -160,7 +160,13 @@ local test_extendStr() =
 	assert std.assertEqual(utl.extendStr('',3,'x',false), 'xxx');
 	true;
 
+local test_while() =
+	local cd(x) = (x < 999);
+	local wk(x) = (x + 1);
+	assert std.assertEqual(utl.while(cd, wk, 0), 999);
+	true;
+
 {
 	result: test_empty() && test_no() && test_yes() && test_apply() && test_matchAny() && 
-		test_sum() && test_object2Array() && test_makeObject() && test_extendStr()
+		test_sum() && test_object2Array() && test_makeObject() && test_extendStr() && test_while()
 }
