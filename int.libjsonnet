@@ -347,9 +347,13 @@ local multUIntStr(a,b) =
 				local low = std.substr(noPrefix, restLen, 8);
 				local high = std.substr(noPrefix, 0, restLen);
 				local lowNum = std.parseHex(low);
-				local highNum = int.mult(std.parseHex(high),"4294967296");
-				local num2 = int.add(lowNum, highNum);
-				{ result: num2, errors: [] }
+				local highNum = std.parseHex(high);
+				if highNum <= int.MAX_SAFE_INTEGER then
+					local num2 = int.add(lowNum, int.mult(highNum,"4294967296"));
+					{ result: num2, errors: [] }
+				else
+					# Hex value beyond 64-bit unsigned it
+					{ result: null, errors: [ log.badVal(source, index, field, 'hex', str) ] }
 		else
 			{ result: null, errors: [ log.badVal(source, index, field, 'hex', str) ] },
 

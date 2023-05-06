@@ -171,6 +171,9 @@ local test_safeParseHex() =
 		errors: []};
 	assert int.safeParseHex("test",0,"f","0xFFFFFFFFFFFFFFFF") == { result: "18446744073709551615",
 		errors: []};
+	assert int.safeParseHex("test",0,"f","0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF") == { result: null,
+		errors: [{"ERROR": "'hex' value '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' is not valid",
+			"Field": "f", "Index": "0", "Source": "test"}]};
 	true;
 
 local test_safeParseNumber() =
