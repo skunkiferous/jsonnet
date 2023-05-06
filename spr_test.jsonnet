@@ -62,8 +62,9 @@ local test_isJSONStr() =
 	true;
 
 local test_safeParseJSON() =
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f",""), {"errors": [{"ERROR": "'JSON' value '\"\"' is not valid",
-		"Field": "f", "Index": "0", "Source": "test"}], "result": null});
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f",""), {"errors": [{"ERROR":
+		"'JSON' value '\"\"' is not valid", "Field": "f", "Index": "0", "Source": "test"}], "result":
+		null});
 	
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f","null"), { result: null, errors: [] });
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f","true"), { result: true, errors: [] });
@@ -75,25 +76,33 @@ local test_safeParseJSON() =
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f","[null]"), { result: [null], errors: [] });
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f","[true]"), { result: [true], errors: [] });
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f","[false]"), { result: [false], errors: [] });
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f","[123.456]"), { result: [123.456], errors: [] });
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f","[123.456]"), { result: [123.456], errors:
+		[] });
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'[""]'), { result: [''], errors: [] });
 	
 	assert std.assertEqual(spr.safeParseJSON("test",0,"f","{}"), { result: {}, errors: [] });
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":null}'), { result: {"f":null}, errors: [] });
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":true}'), { result: {"f":true}, errors: [] });
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":false}'), { result: {"f":false}, errors: [] });
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":123.456}'), { result: {"f":123.456}, errors: [] });
-	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":""}'), { result: {"f":''}, errors: [] });
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":null}'), { result: {"f":null}, errors:
+		 [] });
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":true}'), { result: {"f":true}, errors:
+		[] });
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":false}'), { result: {"f":false},
+		errors: [] });
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":123.456}'), { result: {"f":123.456},
+		errors: [] });
+	assert std.assertEqual(spr.safeParseJSON("test",0,"f",'{"f":""}'), { result: {"f":''}, errors:
+		[] });
 	
 	# TODO Validate bad JSON too
 	true;
 
 local test_safeParse() =
 	assert std.assertEqual(spr.safeParse("test",0,"f","boolean","true"), { result: true, errors: [] });
-	assert std.assertEqual(spr.safeParse("test",0,"f","number","123.456"), { result: 123.456, errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","number","123.456"), { result: 123.456, errors:
+		[] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","int","42"), { result: 42, errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","hex","0xFF"), { result: 255, errors: [] });
-	assert std.assertEqual(spr.safeParse("test",0,"f","json",'{"json":true}'), { result: {"json":true}, errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","json",'{"json":true}'), { result: {"json":true},
+		errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","string","xxx"), { result: "xxx", errors: [] });
 	
 	assert std.assertEqual(spr.safeParse("test",0,"f","boolean","Z"), {"errors":
@@ -146,13 +155,17 @@ local test_isIdentifierPath() =
 	true;
 
 local test_tsv2TypedTSV() =
-	assert std.assertEqual(spr.tsv2TypedTSV("test", spr.str2TSV('x\nz')), {"errors": [ ], "result": [["x"], ["z"]]});
-	assert std.assertEqual(spr.tsv2TypedTSV("test", spr.str2TSV('x:int\n0')), {"errors": [ ], "result": [["x:int"], [0]]});
+	assert std.assertEqual(spr.tsv2TypedTSV("test", spr.str2TSV('x\nz')), {"errors": [ ], "result":
+		[["x"], ["z"]]});
+	assert std.assertEqual(spr.tsv2TypedTSV("test", spr.str2TSV('x:int\n0')), {"errors": [ ], "result":
+		[["x:int"], [0]]});
 	assert std.assertEqual(spr.tsv2TypedTSV("test",
-		spr.str2TSV('b:boolean\tn:number\ti:int\th:hex\tj:json\ts:string\ntrue\t12.34\t42\t0xF\t[true]\tx')),
+		spr.str2TSV(
+			'b:boolean\tn:number\ti:int\th:hex\tj:json\ts:string\ntrue\t12.34\t42\t0xF\t[true]\tx')),
 		{"errors": [ ], "result": [["b:boolean", "n:number", "i:int", "h:hex", "j:json", "s:string"],
 			[true, 12.34, 42, 15, [true], "x"]]});
-	assert std.assertEqual(spr.tsv2TypedTSV("test", 'x\nz'), {"errors": [ ], "result": [["x"], ["z"]]});
+	assert std.assertEqual(spr.tsv2TypedTSV("test", 'x\nz'), {"errors": [ ], "result": [["x"],
+		["z"]]});
 	true;
 
 local test_tsv2Obj() =
@@ -162,13 +175,16 @@ local test_tsv2Obj() =
 		["FATAL: test has no field name defined in header row"] } });
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('\tx\n')), { "test": { result: null, errors:
 		["FATAL: test has empty field name(s) defined in header row"] } });
-	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:int:string\n')), { "test": { result: null, errors:
+	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:int:string\n')), { "test": { result: null,
+		errors:
 		["FATAL: test has field name(s) that are multiple type separators [\"x:int:string\"]"] } });
-	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:cat\n')), { "test": { result: null, errors:
+	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:cat\n')), { "test": { result: null,
+		errors:
 		["FATAL: test has field(s) that use unsupported types [\"cat\"]"] } });
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('?\n')), { "test": { result: null, errors:
 		["FATAL: test has field name(s) that are not valid identifiers [\"?\"]"] } });
-	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('a.b\ta.0\n')), { "test": { result: null, errors:
+	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('a.b\ta.0\n')), { "test": { result: null,
+		errors:
 		["FATAL: test has field name(s) that are both objects and arrays [\"a\"]"] } });
 	
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('a.b.c\nz')),
@@ -177,7 +193,8 @@ local test_tsv2Obj() =
 		[{"a": "x", "b": {"s": "y"}, "c": ["z"]}], errors: [] } });
 	
 	local tsv = spr.tsv2TypedTSV("test",
-		spr.str2TSV('b:boolean\tn:number\ti:int\th:hex\tj:json\ts:string\ntrue\t12.34\t42\t0xF\t[true]\tx'));
+		spr.str2TSV(
+			'b:boolean\tn:number\ti:int\th:hex\tj:json\ts:string\ntrue\t12.34\t42\t0xF\t[true]\tx'));
 	assert std.assertEqual(std.length(tsv.errors), 0);
 	assert std.assertEqual(spr.tsv2Obj("test",tsv.result), {"test": {"errors": [ ], "result":
 		[{"b": true, "h": 15, "i": 42, "j": [true], "n": 12.34, "s": "x"}]}});
@@ -188,6 +205,7 @@ local test_tsv2Obj() =
 
 {
 	result:
-		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() && test_safeParse() &&
-		test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() && test_tsv2Obj()
+		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() &&
+		test_safeParse() && test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() &&
+		test_tsv2Obj()
 }

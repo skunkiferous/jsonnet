@@ -170,9 +170,9 @@ local genBuilder(fieldNames) =
 	local spr = self,
 	
 	# Library description
-	DESCIPTION:: "jsonnet library 'spr' (Safe Parser) primary function is to split text files in lines, "
-		+"and import them as TSV.\nIt has some additional helper functions like safeParseJSON() to enable "
-		+"the primary function.",
+	DESCIPTION:: "jsonnet library 'spr' (Safe Parser) primary function is to split text files in lines,"
+		+" and import them as TSV.\nIt has some additional helper functions like safeParseJSON() to "
+		+"enable the primary function.",
 	
 	# All the imported libraries
 	IMPORTS:: { log: log, utl: utl, int: int },
@@ -194,8 +194,8 @@ local genBuilder(fieldNames) =
 		std.map(trimBlankAndCommentAndSplit, spr.str2Lines(text)),
 
 	# Returns true, if "str" is JSON
-	# WARNING: Validation is currently NOT implemented! It would require support for regex, which isn't
-	# currently in jsonnet
+	# WARNING: Validation is currently NOT implemented! It would require support for regex, which
+	# isn't currently in jsonnet
 	isJSONStr(str)::
 		assert std.assertEqual(std.type(str), "string");
 		if std.length(str) == 0 then
@@ -288,12 +288,13 @@ local genBuilder(fieldNames) =
 			else if std.length(fieldNamesAndTypes) == 0 then
 				[ FATAL+source + " has no field name defined in header row" ]
 			else
-				local nonEmpty = std.filter(function(f) std.length(f) > 0, std.prune(fieldNamesAndTypes));
+				local nonEmpty = std.filter(function(f) std.length(f) > 0,
+					std.prune(fieldNamesAndTypes));
 				if std.length(fieldNamesAndTypes) != std.length(nonEmpty) then
 					[ FATAL+source + " has empty field name(s) defined in header row" ]
 				else
-					local multiType = std.filter(function(f) std.length(std.findSubstr(TYPE_SEP, f)) > 1,
-						fieldNamesAndTypes);
+					local multiType = std.filter(function(f) std.length(std.findSubstr(TYPE_SEP, f))
+						> 1, fieldNamesAndTypes);
 					if std.length(multiType) > 0 then
 						[ FATAL+source + " has field name(s) that are multiple type separators "
 							+ std.toString(multiType) ]
@@ -314,17 +315,18 @@ local genBuilder(fieldNames) =
 								local prefixes = findFieldsPrefixes(fieldNames, 0);
 								local objPrefixes = std.filter(function(p) fieldIsObj(fieldNames, p),
 									prefixes);
-								local arrayPrefixes = std.filter(function(p) fieldIsArray(fieldNames, p),
-									prefixes);
+								local arrayPrefixes = std.filter(function(p) fieldIsArray(fieldNames,
+									p), prefixes);
 								local both = std.setInter(objPrefixes, arrayPrefixes);
 								if std.length(both) != 0 then
-									[ FATAL+source + " has field name(s) that are both objects and arrays "
+									[ FATAL+source
+										+ " has field name(s) that are both objects and arrays "
 										+ std.toString(both) ]
 								else
 									[],
 
-	# Process the content of a "TSV file", returning an object mapping the file name to it's "result" and
-	# the processing "errors"
+	# Process the content of a "TSV file", returning an object mapping the file name to it's "result"
+	# and the processing "errors"
 	local tsv2Obj2(source, tsv3) =
 		local headerErrors = checkTSVFieldNames(source, tsv3);
 		if std.length(headerErrors) > 0 then
@@ -350,10 +352,10 @@ local genBuilder(fieldNames) =
 			local filtered = std.filter(function(o) o != null, mapped);
 			{ [source] : log.mergeOnlyErrors(filtered)} ,
 
-	# Process the content of a "TSV file", returning an object mapping the file name to it's "result" and the
-	# processing "errors". If tsv is actually a string, tsv2TypedTSV(source,tsv) is called on it first.
-	# Otherwise, this function assumes the strings have *already* been converted to the appropriate type,
-	# where nescesary.
+	# Process the content of a "TSV file", returning an object mapping the file name to it's "result"
+	# and the processing "errors". If tsv is actually a string, tsv2TypedTSV(source,tsv) is called on
+	# it first. Otherwise, this function assumes the strings have *already* been converted to the
+	# appropriate type, where nescesary.
 	tsv2Obj(source, tsv)::
 		local tsv2 = if std.type(tsv) == "string" then
 			spr.tsv2TypedTSV(source, tsv)

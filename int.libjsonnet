@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-# jsonnet library "int" helps (a bit) dealing with integers, that are outside the range that can correctly
-# be represented as a "number" (64bit double). For completness, it also included a isNumberStr(),
-# safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.
+# jsonnet library "int" helps (a bit) dealing with integers, that are outside the range that can
+# correctly be represented as a "number" (64bit double). For completness, it also included a
+# isNumberStr(), safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.
 
 local log = import 'log.libjsonnet';
 local utl = import 'utl.libjsonnet';
@@ -205,9 +205,10 @@ local multUIntStr(a,b) =
 	local int = self,
 	
 	# Library description
-	DESCIPTION:: "jsonnet library 'int' helps (a bit) dealing with integers, that are outside the range"
-		+" that can correctly be represented\nas a 'number' (64bit double). For completness, it also "
-		+"included a isNumberStr(), safeParseNumber(), isBooleanStr() und safeParseBoolean() functions.",
+	DESCIPTION:: "jsonnet library 'int' helps (a bit) dealing with integers, that are outside the "
+		+"range that can correctly be represented\nas a 'number' (64bit double). For completness, it "
+		+"also included a isNumberStr(), safeParseNumber(), isBooleanStr() und safeParseBoolean() "
+		+"functions.",
 	
 	# All the imported libraries
 	IMPORTS:: { log: log, utl: utl },
@@ -234,14 +235,14 @@ local multUIntStr(a,b) =
 	isBooleanStr(str)::
 		(str == "true" || str == "false"),
 
-	# Returns true, if "str" is an unsigned integer (even huge integers, that cannot be represented correctly
-	# as a JSON number).
+	# Returns true, if "str" is an unsigned integer (even huge integers, that cannot be represented
+	# correctly as a JSON number).
 	isUIntegerStr(str)::
 		(std.type(str) == "string") && (std.length(str) > 0) &&
 			(std.length(std.stripChars(str, INT_CHARS)) == 0),
 
-	# Returns true, if "str" is an integer (even huge integers, that cannot be represented correctly as a
-	# JSON number).
+	# Returns true, if "str" is an integer (even huge integers, that cannot be represented correctly
+	# as a JSON number).
 	isIntegerStr(str)::
 		if std.type(str) == "string" then
 			if std.startsWith(str,'-') then
@@ -290,7 +291,8 @@ local multUIntStr(a,b) =
 		else
 			false,
 
-	# Returns true, if this integer is within the range that can be correctly represented as a JSON number
+	# Returns true, if this integer is within the range that can be correctly represented as a JSON
+	# number
 	isNotHugeInt(num)::
 		(std.type(num) == "number") && int.isIntegerStr(std.toString(num)) &&
 			(num >= int.MIN_SAFE_INTEGER) && (num <= int.MAX_SAFE_INTEGER),

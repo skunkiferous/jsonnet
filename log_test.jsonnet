@@ -31,8 +31,8 @@ local test_log() =
 	true;
 
 local test_badVal() =
-	assert std.assertEqual(log.badVal('s', 0, 'f', 'int', ['john']), {ERROR: "'int' value '[\"john\"]' is not valid",
-		Field: "f", Index: "0", Source: "s"});
+	assert std.assertEqual(log.badVal('s', 0, 'f', 'int', ['john']), {ERROR:
+		"'int' value '[\"john\"]' is not valid", Field: "f", Index: "0", Source: "s"});
 	true;
 
 local test_warnVal() =
@@ -58,8 +58,8 @@ local test_hasErrors() =
 	true;
 
 local test_mergeOnlyErrors() =
-	assert std.assertEqual(log.mergeOnlyErrors([{ result: true, errors: ['a'] }, { result: false, errors: ['b'] }]),
-		{ result: [true, false], errors: ['a','b'] });
+	assert std.assertEqual(log.mergeOnlyErrors([{ result: true, errors: ['a'] }, { result: false,
+		errors: ['b'] }]), { result: [true, false], errors: ['a','b'] });
 	true;
 
 local test_mergeContentAndErrors() =
@@ -68,6 +68,6 @@ local test_mergeContentAndErrors() =
 	true;
 
 {
-	result: test_log() && test_badVal() && test_warnVal() && test_hasErrors() && test_mergeOnlyErrors() &&
-		test_mergeContentAndErrors()
+	result: test_log() && test_badVal() && test_warnVal() && test_hasErrors() &&
+		test_mergeOnlyErrors() && test_mergeContentAndErrors()
 }
