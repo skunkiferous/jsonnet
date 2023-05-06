@@ -481,6 +481,13 @@ local test_divmod() =
 	assert std.assertEqual(int.divmod("9223372036854775808",2), ["4611686018427387904",0]);
 	true;
 
+local test_toHexStr() =
+	assert std.assertEqual(int.toHexStr("test",0,"f",255), { result: '0xFF', errors: [] });
+	assert std.assertEqual(int.toHexStr("test",0,"f",4294967295), { result: '0xFFFFFFFF', errors: [] });
+	assert std.assertEqual(int.toHexStr("test",0,"f",920735923817967), { result: '0x3456789ABCDEF',
+		errors: [] });
+	true;
+
 {
 	result:
 		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() &&
@@ -489,5 +496,5 @@ local test_divmod() =
 		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
 		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
 		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub() &&
-		test_mult() && test_divmod()
+		test_mult() && test_divmod() && test_toHexStr()
 }
