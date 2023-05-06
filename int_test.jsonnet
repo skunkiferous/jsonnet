@@ -167,12 +167,10 @@ local test_safeParseHex() =
 		[{"ERROR": "'hex' value '0xZ' is not valid", "Field": "f", "Index": "0", "Source": "test"}],
 		"result": null};
 	assert int.safeParseHex("test",0,"f","0x1FFFFFFFFFFFFF") == { result: 9007199254740991, errors: [] };
-	assert int.safeParseHex("test",0,"f","0x20000000000000") == {"result": "0x20000000000000",
-		"errors": [{"Field": "f", "Index": "0", "Source": "test", "WARN":
-		"'hex' value '0x20000000000000' cannot be safely represented as a number."}]};
-	assert int.safeParseHex("test",0,"f","0xFFFFFFFFFFFFFFFF") == {"result": "0xFFFFFFFFFFFFFFFF",
-		"errors": [{"Field": "f", "Index": "0", "Source": "test", "WARN":
-		"'hex' value '0xFFFFFFFFFFFFFFFF' cannot be safely represented as a number."}]};
+	assert int.safeParseHex("test",0,"f","0x20000000000000") == { result: "9007199254740992",
+		errors: []};
+	assert int.safeParseHex("test",0,"f","0xFFFFFFFFFFFFFFFF") == { result: "18446744073709551615",
+		errors: []};
 	true;
 
 local test_safeParseNumber() =

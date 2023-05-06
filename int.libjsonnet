@@ -335,14 +335,21 @@ local multUIntStr(a,b) =
 	# In this case, it will remain a string, and a warning will be given in "errors".
 	safeParseHex(source, index, field, str)::
 		if int.isHexStr(str) then
-			local num = std.parseHex(std.substr(str, 2, std.length(str)-2));
+			local strLen = std.length(str);
+			local noPrefix = std.substr(str, 2, strLen-2);
+			local num = std.parseHex(noPrefix);
 			# hex num will never be < 0!
 			if num <= int.MAX_SAFE_INTEGER then
 				{ result: num, errors: [] }
 			else
-				# TODO: ideally, we would still convert that hex string into a decimal str
-				{ result: str, errors: [ log.warnVal(source, index, field, 'hex', str,
-					'cannot be safely represented as a number.') ] }
+				# Hex value needs 53+ bits; break in half.
+				local restLen = strLen - 2 - 8;
+				local low = std.substr(noPrefix, restLen, 8);
+				local high = std.substr(noPrefix, 0, restLen);
+				local lowNum = std.parseHex(low);
+				local highNum = int.mult(std.parseHex(high),"4294967296");
+				local num2 = int.add(lowNum, highNum);
+				{ result: num2, errors: [] }
 		else
 			{ result: null, errors: [ log.badVal(source, index, field, 'hex', str) ] },
 
