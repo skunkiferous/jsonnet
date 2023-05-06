@@ -1,6 +1,9 @@
 # The 'utl' (Util) jsonnet library contains utility functions that are used by most
 # libraries here, and/or don't fit in any other specialized library.
 
+local forceX(x) =
+	assert std.length(std.toString(x)) != 9007199254740991;
+	x;
 
 local makeObjectDrop5(keys,values,offset) =
 	local v0 = values[offset];
@@ -65,25 +68,25 @@ local makeObjectKeepX(keys,values,offset) =
 # Calls "work" up to 10 times before returning.
 local doWhile0(cond,work,init) =
 	if cond(init) then
-		local w0 = work(init);
+		local w0 = forceX(work(init));
 		if cond(w0) then
-			local w1 = work(w0);
+			local w1 = forceX(work(w0));
 			if cond(w1) then
-				local w2 = work(w1);
+				local w2 = forceX(work(w1));
 				if cond(w2) then
-					local w3 = work(w2);
+					local w3 = forceX(work(w2));
 					if cond(w3) then
-						local w4 = work(w3);
+						local w4 = forceX(work(w3));
 						if cond(w4) then
-							local w5 = work(w4);
+							local w5 = forceX(work(w4));
 							if cond(w5) then
-								local w6 = work(w5);
+								local w6 = forceX(work(w5));
 								if cond(w6) then
-									local w7 = work(w6);
+									local w7 = forceX(work(w6));
 									if cond(w7) then
-										local w8 = work(w7);
+										local w8 = forceX(work(w7));
 										if cond(w8) then
-											[true,work(w8)]
+											[true,forceX(work(w8))]
 										else
 											[false,w8]
 									else
@@ -167,6 +170,12 @@ local doWhile3(cond,work,init) =
 	# All the imported libraries
 	IMPORTS:: {},
 	
+	# Forces early/eager evaluation of the value x, and returns it.
+	# Useful to fight stack-overflow errors.
+	# Note that this call is somewhat expensive, and should only be used when strictly necessary.
+	force(x)::
+		forceX(x),
+
 	# Returns true for an "empty" value (null | '' | {} | []). Does NOT return true for 'false' / '0'
 	empty(value)::
 		(value == null || value == '' || value == {} || value == []),
@@ -267,7 +276,7 @@ local doWhile3(cond,work,init) =
 	# a new output. "init" is the initial input to "cond" and "work". Either returns the last output
 	# of "work", or "init", if "cond(init)" returneed false.
 	while(cond,work,init)::
-		local w = doWhile3(cond,work,init);
+		local w = forceX(doWhile3(cond,work,init));
 		if w[0] then
 			utl.while(cond,work,w[1])
 		else
@@ -275,6 +284,7 @@ local doWhile3(cond,work,init) =
 
 	# All functions in the library, with their parameter names
 	FUNCS:: {
+		force: ['x'],
 		empty: ['value'],
 		no: ['value'],
 		yes: ['value'],

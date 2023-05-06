@@ -576,105 +576,28 @@ local multUIntStr(a,b) =
 	mult(a,b)::
 		intToNumberSafe(mult2(a,b)),
 
-
 	# Takes two positive integers strings, divides a by b, and returns [quotient, remainder].
-	local euclideRecursTrace(a,bbbbbb) =
-		local b = std.trace("euclideRecurs"+std.toString([a,bbbbbb]), bbbbbb);
+	local euclide(a,b) =
 		# We need division to implement division! But x/10 can be implemented without / ...
 		local newN2(ax,n) =
 			if int.gt(int.mult(b, n), ax) then
 				n
 			else
 				newN2(ax,mult10(n));
-		local newN(ax,n) = std.trace("newN"+std.toString([ax,n]), div10(newN2(ax,n)));
+		local newN(ax,n) = utl.force(div10(newN2(ax,n)));
 		local newQR2(bn,nx,qx,rx) =
 			if int.lt(rx, bn) then
 				[qx,rx]
 			else
 				newQR2(bn,nx,int.add(qx,nx),int.sub(rx,bn));
-		local newQR(nx,qx,rx) = std.trace("newQR"+std.toString([nx,qx,rx]), newQR2(int.mult(b, nx),nx,qx,rx));
-		local loop(ax,nx,qx,rxxx) =
-			local rx = std.trace("loop"+std.toString([ax,nx,qx,rxxx]), rxxx);
-			if int.lt(rx, b) then
-				[qx,rx]
-			else
-				local qxrx = newQR(newN(ax,nx),qx,rx);
-				loop(qxrx[1],1,qxrx[0],qxrx[1]);
-		loop(a,1,0,a),
-
-	# Takes two positive integers strings, divides a by b, and returns [quotient, remainder].
-	local euclideRecurs(a,bbbbbb) =
-		local b = std.trace("euclideRecurs"+std.toString([a,bbbbbb]), bbbbbb);
-		# We need division to implement division! But x/10 can be implemented without / ...
-		local newN2(ax,n) =
-			if int.gt(int.mult(b, n), ax) then
-				n
-			else
-				newN2(ax,mult10(n));
-		local newN(ax,n) = div10(newN2(ax,n));
-		local newQR2(bn,nx,qx,rx) =
-			if int.lt(rx, bn) then
-				[qx,rx]
-			else
-				newQR2(bn,nx,int.add(qx,nx),int.sub(rx,bn));
-		local newQR(nx,qx,rx) = newQR2(int.mult(b, nx),nx,qx,rx);
+		local newQR(nx,qx,rx) = utl.force(newQR2(int.mult(b, nx),nx,qx,rx));
 		local loop(ax,nx,qx,rx) =
 			if int.lt(rx, b) then
 				[qx,rx]
 			else
 				local qxrx = newQR(newN(ax,nx),qx,rx);
-				loop(qxrx[1],1,qxrx[0],qxrx[1]);
+				utl.force(loop(qxrx[1],1,qxrx[0],qxrx[1]));
 		loop(a,1,0,a),
-
-	# Takes two positive integers strings, divides a by b, and returns [quotient, remainder].
-	local euclideWhileTrace(a,bbbbbb) =
-		local b = std.trace("euclideWhile"+std.toString([a,bbbbbb]), bbbbbb);
-		# We need division to implement division! But x/10 can be implemented without / ...
-		local newNCond(ax_n) = std.trace("newN"+std.toString(ax_n), int.le(int.mult(b, ax_n[1]), ax_n[0]));
-		local newNWork(ax_n) = [ax_n[0], mult10(ax_n[1])];
-		local newN(ax,n) = div10(utl.while(newNCond,newNWork,[ax,n])[1]);
-
-		local newQRCond(bn_nx_qx_rx) = std.trace("newQR"+std.toString(bn_nx_qx_rx), int.ge(bn_nx_qx_rx[3], bn_nx_qx_rx[0]));
-		local newQRWork(bn_nx_qx_rx) = [bn_nx_qx_rx[0],bn_nx_qx_rx[1],
-			int.add(bn_nx_qx_rx[2],bn_nx_qx_rx[1]),int.sub(bn_nx_qx_rx[3],bn_nx_qx_rx[0])];
-		local newQR(nx,qx,rx) =
-			local bn_nx_qx_rx = utl.while(newQRCond,newQRWork,[int.mult(b, nx),nx,qx,rx]);
-			[bn_nx_qx_rx[2],bn_nx_qx_rx[3]];
-
-		local loopCond(ax_nx_qx_rx) = std.trace("loop"+std.toString(ax_nx_qx_rx), int.ge(ax_nx_qx_rx[3], b));
-		local loopWork(ax_nx_qx_rx) =
-			local qxrx = newQR(newN(ax_nx_qx_rx[0],ax_nx_qx_rx[1]),ax_nx_qx_rx[2],ax_nx_qx_rx[3]);
-			[qxrx[1],1,qxrx[0],qxrx[1]];
-		local loop(ax,nx,qx,rx) =
-			local ax_nx_qx_rx = utl.while(loopCond,loopWork,[ax,nx,qx,rx]);
-			[ax_nx_qx_rx[2],ax_nx_qx_rx[3]];
-		loop(a,1,0,a),
-
-	# Takes two positive integers strings, divides a by b, and returns [quotient, remainder].
-	local euclideWhile(a,bbbbbb) =
-		local b = std.trace("euclideWhile"+std.toString([a,bbbbbb]), bbbbbb);
-		# We need division to implement division! But x/10 can be implemented without / ...
-		local newNCond(ax_n) = int.le(int.mult(b, ax_n[1]), ax_n[0]);
-		local newNWork(ax_n) = [ax_n[0], mult10(ax_n[1])];
-		local newN(ax,n) = div10(utl.while(newNCond,newNWork,[ax,n])[1]);
-
-		local newQRCond(bn_nx_qx_rx) = int.ge(bn_nx_qx_rx[3], bn_nx_qx_rx[0]);
-		local newQRWork(bn_nx_qx_rx) = [bn_nx_qx_rx[0],bn_nx_qx_rx[1],
-			int.add(bn_nx_qx_rx[2],bn_nx_qx_rx[1]),int.sub(bn_nx_qx_rx[3],bn_nx_qx_rx[0])];
-		local newQR(nx,qx,rx) =
-			local bn_nx_qx_rx = utl.while(newQRCond,newQRWork,[int.mult(b, nx),nx,qx,rx]);
-			[bn_nx_qx_rx[2],bn_nx_qx_rx[3]];
-
-		local loopCond(ax_nx_qx_rx) = int.ge(ax_nx_qx_rx[3], b);
-		local loopWork(ax_nx_qx_rx) =
-			local qxrx = newQR(newN(ax_nx_qx_rx[0],ax_nx_qx_rx[1]),ax_nx_qx_rx[2],ax_nx_qx_rx[3]);
-			[qxrx[1],1,qxrx[0],qxrx[1]];
-		local loop(ax,nx,qx,rx) =
-			local ax_nx_qx_rx = utl.while(loopCond,loopWork,[ax,nx,qx,rx]);
-			[ax_nx_qx_rx[2],ax_nx_qx_rx[3]];
-		loop(a,1,0,a),
-
-	local euclide = euclideRecurs,
 
 	# Takes two positive integers, divides a by b, and returns [quotient, remainder].
 	local doDivmod(a,b) =

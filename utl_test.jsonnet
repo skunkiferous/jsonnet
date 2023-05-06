@@ -1,5 +1,10 @@
 local utl = import 'utl.libjsonnet';
 
+
+local test_force() =
+	assert utl.force(std.length([0,1,3])) == 3;
+	true;
+
 local test_empty() =
 	assert utl.empty(null);
 	assert utl.empty('');
@@ -167,6 +172,7 @@ local test_while() =
 	true;
 
 {
-	result: test_empty() && test_no() && test_yes() && test_apply() && test_matchAny() && 
-		test_sum() && test_object2Array() && test_makeObject() && test_extendStr() && test_while()
+	result: test_force() && test_empty() && test_no() && test_yes() && test_apply() &&
+		test_matchAny() &&  test_sum() && test_object2Array() && test_makeObject() &&
+		test_extendStr() && test_while()
 }
