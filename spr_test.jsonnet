@@ -204,32 +204,50 @@ local test_tsv2Obj() =
 
 local test_buildEnum() =
 	assert std.assertEqual(spr.buildEnum("test", ['a',null,'','d']), {errors: [], result:
-		{index2Label: ["A", '', '', "D"], label2Index: {"A": 0, "D": 3}}});
-
-	#assert std.assertEqual(spr.buildEnum("test", ['a',null,'','d']), {errors: [], result: null});
-
-	true;
-
-local test_labelToIndex() =
-#labelToIndex: ['enumType', 'enumLabel'],
+		{id2Label: ["A", '', '', "D"], label2Id: {"A": 0, "D": 3}}});
+	assert std.assertEqual(spr.buildEnum("test", ['a','A']), {errors: [
+		'FATAL: test has label(s) defined multiple times: ["A", "A"]' ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", null), {errors: [
+		"FATAL: test labels is not an array: null" ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", [99,true]), {errors: [
+		"FATAL: test has bad label(s): [99, true]" ], result: null});
 	true;
 
 local test_isEnumType() =
-#isEnumType: ['enumType'],
+	assert spr.isEnumType({id2Label: ["A", '', '', "D"], label2Id: {"A": 0, "D": 3}});
+	assert !spr.isEnumType('abc');
 	true;
 
-local test_indexToLabel() =
-#indexToLabel: ['enumType', 'enumIdx'],
+local test_labelToId() =
+	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	assert std.assertEqual(spr.labelToId(et,'a'), 0);
+	assert std.assertEqual(spr.labelToId(et,'d'), 3);
+	assert std.assertEqual(spr.labelToId(et,true), null);
+	true;
+
+local test_idToLabel() =
+	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	assert std.assertEqual(spr.idToLabel(et,0), 'A');
+	assert std.assertEqual(spr.idToLabel(et,3), 'D');
+	assert std.assertEqual(spr.idToLabel(et,true), null);
 	true;
 
 local test_safeParseEnum() =
-#safeParseEnum: ['source', 'index', 'field', 'enumType', 'str'],
+	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 'a'), {errors: [], result: 0});
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 'D'), {errors: [], result: 3});
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 0), {errors: [], result: 0});
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 3), {errors: [], result: 3});
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 2), {result: null, errors: [
+		{ERROR: "'enum' value '2' is not valid", Field: "f", Index: "1", Source: "test"} ]});
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 'x'), {result: null, errors: [
+		{ERROR: "'enum' value 'x' is not valid", Field: "f", Index: "1", Source: "test"} ]});
 	true;
 
 {
 	result:
 		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() &&
 		test_safeParse() && test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() &&
-		test_tsv2Obj() && test_buildEnum() && test_isEnumType() && test_labelToIndex() &&
-		test_indexToLabel() && test_safeParseEnum()
+		test_tsv2Obj() && test_buildEnum() && test_isEnumType() && test_labelToId() &&
+		test_idToLabel() && test_safeParseEnum()
 }

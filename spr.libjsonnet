@@ -391,45 +391,48 @@ local genBuilder(fieldNames) =
 						+ std.toString(multiLabels)] }
 				else
 					local idxLabel(idx,label) = if label == '' then null else { [label]: idx };
-					# obj maps label to index
+					# obj maps label to id
 					local obj = utl.sum(std.prune(std.mapWithIndex(idxLabel, upper)), {});
-					{ result: { index2Label: upper, label2Index: obj }, errors: [] },
+					{ result: { id2Label: upper, label2Id: obj }, errors: [] },
 
 	# Returns true if x is an enum type.
 	isEnumType(enumType)::
-		(std.type(enumType) == 'object') && (std.type(std.get(enumType, 'label2Index')) == 'object') &&
-		(std.type(std.get(enumType, 'index2Label')) == 'array'),
+		(std.type(enumType) == 'object') && (std.type(std.get(enumType, 'label2Id')) == 'object') &&
+		(std.type(std.get(enumType, 'id2Label')) == 'array'),
 	
-	# Maps an enum label to it's index, or null if not found.
-	labelToIndex(enumType,enumLabel)::
+	# Maps an enum label to it's id, or null if not found.
+	labelToId(enumType,enumLabel)::
 		assert spr.isEnumType(enumType);
 		if std.type(enumLabel) == 'string' then
-			std.get(enumType.label2Index, std.asciiUpper(enumLabel))
+			std.get(enumType.label2Id, std.asciiUpper(enumLabel))
 		else
 			null,
 
-	# Maps an enum index to it's label, or null if not found.
-	indexToLabel(enumType,enumIdx)::
+	# Maps an enum id to it's label, or null if not found.
+	idToLabel(enumType,enumId)::
 		assert spr.isEnumType(enumType);
-		if int.isUInt64(enumIdx) then
-			local num = int.toNumber(enumIdx);
-			if std.length(enumType.index2Label) > num then
-				enumType.index2Label[enumIdx]
+		if (std.type(enumId) == 'number') || int.isNumberStr(enumId) then
+			local num = int.toNumber(enumId);
+			if (num >= 0) && (std.length(enumType.id2Label) > num) then
+				local label = enumType.id2Label[num];
+				if label == '' then null else label
 			else
 				null
 		else
 			null,
 
-	# *Safely* parse an enum value (label|idx). Returns an object like { result: index, errors: [] }
+	# *Safely* parse an enum value (label|id). Returns an object like { result: id, errors: [] }
 	# "result" is null and errors contains error message(s) if str is not a valid value.
 	safeParseEnum(source, index, field, enumType, str)::
-		local maybeIdx = spr.labelToIndex(enumType, str);
-		if maybeIdx != null then
-			{ result: maybeIdx, errors: [] }
+		local maybeId = spr.labelToId(enumType, str);
+		if maybeId != null then
+			{ result: maybeId, errors: [] }
 		else
-			local maybeLabel = spr.indexToLabel(enumType, str);
+			local maybeLabel = spr.idToLabel(enumType, str);
 			if maybeLabel != null then
-				{ result: int.toNumber(str), errors: [] }
+				local id = spr.labelToId(enumType, maybeLabel);
+				assert id != null;
+				{ result: id, errors: [] }
 			else
 				{ result: null, errors: [ log.badVal(source, index, field, 'enum', str) ] },
 	
@@ -446,8 +449,8 @@ local genBuilder(fieldNames) =
 		tsv2Obj: ['source', 'tsv'],
 		buildEnum: ['source', 'arr'],
 		isEnumType: ['enumType'],
-		labelToIndex: ['enumType', 'enumLabel'],
-		indexToLabel: ['enumType', 'enumIdx'],
+		labelToId: ['enumType', 'enumLabel'],
+		idToLabel: ['enumType', 'enumId'],
 		safeParseEnum: ['source', 'index', 'field', 'enumType', 'str'],
 	},
 }
