@@ -397,24 +397,65 @@ local genBuilder(fieldNames) =
 						{ result: null, errors: [FATAL+source + " enum needs more than one label!"] }
 					else
 						{ result: { id2Label: upper, label2Id: obj }, errors: [] },
+	
+	# Builds an "enum type" based on an array of TWO strings (enum labels).
+	# All labels must be valid identifiers. Labels are treated as case-insensitive.
+	# "First" label (index 0) will be mapped to 'false', and "second" label will be 'true'.
+	buildBoolEnum(source, labels)::
+		local check = spr.buildEnum(source, labels);
+		if check.result == null then
+			check
+		else
+			local label2Id = check.result.label2Id;
+			local id2Label = check.result.id2Label;
+			if std.length(label2Id) != 2 then
+				{ result: null, errors: [FATAL+source + " 'bool' enum needs TWO labels!"] }
+			else
+				if std.length(id2Label) != 2 then
+					{ result: null, errors: [FATAL+source + " 'bool' enum labels must be at [0,1]!"] }
+				else
+					{ result: { id2Label: id2Label }, errors: [] },
 
 	# Returns true if x is an enum type.
 	isEnumType(enumType)::
-		(std.type(enumType) == 'object') && (std.type(std.get(enumType, 'label2Id')) == 'object') &&
-		(std.type(std.get(enumType, 'id2Label')) == 'array'),
+		if std.type(enumType) == 'object' then
+			local label2Id = std.get(enumType, 'label2Id');
+			local id2Label = std.get(enumType, 'id2Label');
+			(std.type(id2Label) == 'array') && ((std.type(label2Id) == 'object') ||
+				(label2Id == null && std.length(id2Label) == 2))
+		else
+			false,
 	
 	# Maps an enum label to it's id, or null if not found.
 	labelToId(enumType,enumLabel)::
 		assert spr.isEnumType(enumType);
 		if std.type(enumLabel) == 'string' then
-			std.get(enumType.label2Id, std.asciiUpper(enumLabel))
+			local isBoolEnum = (std.get(enumType, 'label2Id') == null);
+			local upper = std.asciiUpper(enumLabel);
+			if isBoolEnum then
+				if enumType.id2Label[0] == upper then
+					false
+				else if enumType.id2Label[1] == upper then
+					true
+				else
+					null
+			else
+				std.get(enumType.label2Id, upper)
 		else
 			null,
 
 	# Maps an enum id to it's label, or null if not found.
 	idToLabel(enumType,enumId)::
 		assert spr.isEnumType(enumType);
-		if (std.type(enumId) == 'number') || int.isNumberStr(enumId) then
+		local isBoolEnum = (std.get(enumType, 'label2Id') == null);
+		if isBoolEnum then
+			if (enumId == false) || (enumId == 'false') then
+				enumType.id2Label[0]
+			else if (enumId == true) || (enumId == 'true') then
+				enumType.id2Label[1]
+			else
+				null
+		else if (std.type(enumId) == 'number') || int.isNumberStr(enumId) then
 			local num = int.toNumber(enumId);
 			if (num >= 0) && (std.length(enumType.id2Label) > num) then
 				local label = enumType.id2Label[num];
@@ -451,6 +492,7 @@ local genBuilder(fieldNames) =
 		isIdentifierPath: ['str'],
 		tsv2Obj: ['source', 'tsv'],
 		buildEnum: ['source', 'arr'],
+		buildBoolEnum: ['source', 'labels'],
 		isEnumType: ['enumType'],
 		labelToId: ['enumType', 'enumLabel'],
 		idToLabel: ['enumType', 'enumId'],
