@@ -22,11 +22,12 @@ Currently, the following modules have working "unit tests", but some features ar
 utl: The "utility" module
 log: The "logging" module. I try to collect all info/warn/errors and give them ALL at the END.
 int: The "big integer" module. Note: No work was done on optimizing for speed.
-spr: The "safe parser" module. "Safe" as in "does not crash with an error". Also supports TSV files.
+spr: The "safe parser" module. "Safe" as in "does not crash with an error". Also supports enums and
+     TSV files.
 
 spr needs a lot more testing.
 
-Support of "enums" and "maps/dicts" is still missing to achieve v0.1 "feature completeness".
+Support of "maps/dicts" is still missing to achieve v0.1 "feature completeness".
 
 run:
 

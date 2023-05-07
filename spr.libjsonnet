@@ -214,8 +214,10 @@ local genBuilder(fieldNames) =
 			{ result: null, errors: [ log.badVal(source, index, field, 'JSON', str) ] },
 
 	# Convert value to the desired type, if possible
-	safeParse(source, index, field, type, str)::
+	safeParse(source, index, field, type, str, customTypes = null)::
 		assert std.assertEqual(std.type(type), "string");
+		local ctType = std.type(customTypes);
+		assert (ctType == 'null' || ctType == 'object'): "customTypes must be object";
 		if type == BOOL then
 			int.safeParseBoolean(source, index, field, str)
 		else if type == NUM then
@@ -230,8 +232,15 @@ local genBuilder(fieldNames) =
 			assert std.assertEqual(std.type(str), "string");
 			{ result: str, errors: [] }
 		else
-			# TODO Enum support
-			{ result: null, errors: [ log.badVal(source, index, field, type+'(unknown)', str) ] },
+			local ct = if customTypes == null then null else std.get(customTypes, type);
+			if ct == null then
+				{ result: null, errors:
+					[ log.badVal(source, index, field, type+'(unknown type)', str) ] }
+			else if spr.isEnumType(ct) then
+				spr.safeParseEnum(source, index, field, ct, str)
+			else
+				{ result: null, errors:
+					[ log.badVal(source, index, field, type+'(unknown custom type)', str) ] },
 
 	# Convert the line strings to values, as needed.
 	local tsvLine2TypedTSVLine(source, index, fieldNames, fieldTypes, values) =

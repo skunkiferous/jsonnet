@@ -122,8 +122,23 @@ local test_safeParse() =
 		"result": null});
 	# "string" is always valid
 	
+	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	local bet = spr.buildBoolEnum("test", ['a','b']).result;
+	local cts = { et: et, bet: bet };
+	assert std.assertEqual(spr.safeParse("test", 1,'f', 'et', 'a', cts), {errors: [], result: 0});
+	assert std.assertEqual(spr.safeParse("test", 1,'f', 'et', '2', cts), {result: null, errors: [
+		{ERROR: "'enum' value '2' is not valid", Field: "f", Index: "1", Source: "test"} ]});
+	assert std.assertEqual(spr.safeParse("test", 1,'f', 'bet', 'a', cts), {errors: [], result: false});
+	assert std.assertEqual(spr.safeParse("test", 1,'f', 'bet', 'true', cts), {errors: [], result:
+		true});
+	assert std.assertEqual(spr.safeParse("test", 1,'f', 'bet', 'x', cts), {result: null, errors: [
+		{ERROR: "'enum' value 'x' is not valid", Field: "f", Index: "1", Source: "test"} ]});
+
 	assert std.assertEqual(spr.safeParse("test",0,"f","complex","zzz"), {"errors":
-		[{"ERROR": "'complex(unknown)' value 'zzz' is not valid", "Field": "f", "Index": "0",
+		[{"ERROR": "'complex(unknown type)' value 'zzz' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+	assert std.assertEqual(spr.safeParse("test",0,"f","complex","zzz", {complex: false}), {"errors":
+		[{"ERROR": "'complex(unknown custom type)' value 'zzz' is not valid", "Field": "f", "Index": "0",
 			"Source": "test"}], "result": null});
 	true;
 
@@ -267,6 +282,8 @@ local test_safeParseEnum() =
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'B'), {errors: [], result: true});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'false'), {errors: [], result: false});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'true'), {errors: [], result: true});
+	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'x'), {result: null, errors: [
+		{ERROR: "'enum' value 'x' is not valid", Field: "f", Index: "1", Source: "test"} ]});
 	true;
 
 {
