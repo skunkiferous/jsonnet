@@ -254,7 +254,7 @@ local genBuilder(fieldNames) =
 				spr.safeParse(source, index, fieldNames[i], fieldTypes[i], v)
 			else
 				{ result: v, errors: [] };
-		log.mergeOnlyErrors([mapper(i) for i in ids]),
+		utl.force(log.mergeOnlyErrors([mapper(i) for i in ids])),
 
 	# Takes the output of str2TSV(text), and convert the strings to values, as needed.
 	# If strtsv is actually a string, str2TSV(strtsv) is called on it first.
