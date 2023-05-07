@@ -206,6 +206,7 @@ local doWhile3(cond,work,init) =
 	apply(func,params)::
 		assert std.assertEqual(std.type(func), "function") &&
 			std.assertEqual(std.type(params), "array");
+		# TODO assert # params of func with std.length(x) 
 		local p = params;
 		local n = std.length(p);
 		if n == 0 then

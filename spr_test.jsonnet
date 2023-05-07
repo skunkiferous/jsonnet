@@ -206,11 +206,13 @@ local test_buildEnum() =
 	assert std.assertEqual(spr.buildEnum("test", ['a',null,'','d']), {errors: [], result:
 		{id2Label: ["A", '', '', "D"], label2Id: {"A": 0, "D": 3}}});
 	assert std.assertEqual(spr.buildEnum("test", ['a','A']), {errors: [
-		'FATAL: test has label(s) defined multiple times: ["A", "A"]' ], result: null});
+		'FATAL: test has enum label(s) defined multiple times: ["A", "A"]' ], result: null});
 	assert std.assertEqual(spr.buildEnum("test", null), {errors: [
-		"FATAL: test labels is not an array: null" ], result: null});
+		"FATAL: test enum labels is not an array: null" ], result: null});
 	assert std.assertEqual(spr.buildEnum("test", [99,true]), {errors: [
-		"FATAL: test has bad label(s): [99, true]" ], result: null});
+		"FATAL: test has bad enum label(s): [99, true]" ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", ['x']), {errors: [
+		"FATAL: test enum needs more than one label!" ], result: null});
 	true;
 
 local test_isEnumType() =

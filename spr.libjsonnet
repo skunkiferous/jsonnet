@@ -374,26 +374,29 @@ local genBuilder(fieldNames) =
 	# The same identifer cannot occure multiple times in the array.
 	buildEnum(source, labels)::
 		if std.type(labels) != "array" then
-			{ result: null, errors: [FATAL+source + " labels is not an array: " + std.type(labels)] }
+			{ result: null, errors: [FATAL+source + " enum labels is not an array: " + std.type(labels)] }
 		else
 			local mapped = std.map(function(x) if x == null then '' else x, labels);
 			local bad(x) = (x != '') && ((std.type(x) != "string") || !spr.isIdentifier(x));
 			local badLabels = std.filter(bad, mapped);
 			if std.length(badLabels) > 0 then
-				{ result: null, errors: [FATAL+source + " has bad label(s): "
+				{ result: null, errors: [FATAL+source + " has bad enum label(s): "
 					+ std.toString(badLabels)] }
 			else
 				local upper = std.map(std.asciiUpper, mapped);
 				local multi(x) = (if (x == '') then 0 else std.count(upper, x)) > 1;
 				local multiLabels = std.filter(multi, upper);
 				if std.length(multiLabels) > 0 then
-					{ result: null, errors: [FATAL+source + " has label(s) defined multiple times: "
-						+ std.toString(multiLabels)] }
+					{ result: null, errors: [FATAL+source +
+						" has enum label(s) defined multiple times: " + std.toString(multiLabels)] }
 				else
 					local idxLabel(idx,label) = if label == '' then null else { [label]: idx };
 					# obj maps label to id
 					local obj = utl.sum(std.prune(std.mapWithIndex(idxLabel, upper)), {});
-					{ result: { id2Label: upper, label2Id: obj }, errors: [] },
+					if std.length(obj) < 2 then
+						{ result: null, errors: [FATAL+source + " enum needs more than one label!"] }
+					else
+						{ result: { id2Label: upper, label2Id: obj }, errors: [] },
 
 	# Returns true if x is an enum type.
 	isEnumType(enumType)::
