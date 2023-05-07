@@ -122,8 +122,8 @@ local test_safeParse() =
 		"result": null});
 	# "string" is always valid
 	
-	local et = spr.buildEnum("test", ['a',null,'','d']).result;
-	local bet = spr.buildBoolEnum("test", ['a','b']).result;
+	local et = spr.buildEnum("test", 'ad', ['a',null,'','d']).result;
+	local bet = spr.buildBoolEnum("test", 'ab', ['a','b']).result;
 	local cts = { et: et, bet: bet };
 	assert std.assertEqual(spr.safeParse("test", 1,'f', 'et', 'a', cts), {errors: [], result: 0});
 	assert std.assertEqual(spr.safeParse("test", 1,'f', 'et', '2', cts), {result: null, errors: [
@@ -190,9 +190,9 @@ local test_tsv2Obj() =
 		["FATAL: test has no field name defined in header row"] } });
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('\tx\n')), { "test": { result: null, errors:
 		["FATAL: test has empty field name(s) defined in header row"] } });
-	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:int:string\n')), { "test": { result: null,
-		errors:
-		["FATAL: test has field name(s) that are multiple type separators [\"x:int:string\"]"] } });
+	#assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:int:string\n')), { "test": { result: null,
+	#	errors:
+	#	["FATAL: test has field name(s) that are multiple type separators [\"x:int:string\"]"] } });
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:cat\n')), { "test": { result: null,
 		errors:
 		["FATAL: test has field(s) that use unsupported types [\"cat\"]"] } });
@@ -215,28 +215,31 @@ local test_tsv2Obj() =
 		[{"b": true, "h": 15, "i": 42, "j": [true], "n": 12.34, "s": "x"}]}});
 	assert std.assertEqual(spr.tsv2Obj("test",'a\tb.s\tc.0\nx\ty\tz'), { "test": { result:
 		[{"a": "x", "b": {"s": "y"}, "c": ["z"]}], errors: [] } });
+
+	assert std.assertEqual(spr.tsv2Obj("test",'a.0.x\ta.0.y\nx0\ty0'), { "test": { result:
+		[{"a": [{"x": "x0", "y": "y0"}]}], errors: [] } });
 	true;
 
 local test_buildEnum() =
-	assert std.assertEqual(spr.buildEnum("test", ['a',null,'','d']), {errors: [], result:
+	assert std.assertEqual(spr.buildEnum("test", 'ab', ['a',null,'','d']), {errors: [], result:
 		{id2Label: ["A", '', '', "D"], label2Id: {"A": 0, "D": 3}}});
-	assert std.assertEqual(spr.buildEnum("test", ['a','A']), {errors: [
-		'FATAL: test has enum label(s) defined multiple times: ["A", "A"]' ], result: null});
-	assert std.assertEqual(spr.buildEnum("test", null), {errors: [
-		"FATAL: test enum labels is not an array: null" ], result: null});
-	assert std.assertEqual(spr.buildEnum("test", [99,true]), {errors: [
-		"FATAL: test has bad enum label(s): [99, true]" ], result: null});
-	assert std.assertEqual(spr.buildEnum("test", ['x']), {errors: [
-		"FATAL: test enum needs more than one label!" ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", 'aa', ['a','A']), {errors: [
+		'FATAL: test enum aa has label(s) defined multiple times: ["A", "A"]' ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", 'null', null), {errors: [
+		"FATAL: test enum null labels is not an array: null" ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", 'nnt', [99,true]), {errors: [
+		"FATAL: test enum nnt has bad label(s): [99, true]" ], result: null});
+	assert std.assertEqual(spr.buildEnum("test", 'x', ['x']), {errors: [
+		"FATAL: test enum x needs more than one label!" ], result: null});
 	true;
 
 local test_buildBoolEnum() =
-	assert std.assertEqual(spr.buildBoolEnum("test", ['a','b']), {errors: [], result:
+	assert std.assertEqual(spr.buildBoolEnum("test", 'ab', ['a','b']), {errors: [], result:
 		{id2Label: ["A", "B"]}});
-	assert std.assertEqual(spr.buildBoolEnum("test", ['a','b','c']), {errors: [
-		"FATAL: test 'bool' enum needs TWO labels!" ], result: null});
-	assert std.assertEqual(spr.buildBoolEnum("test", ['a',null,'c']), {errors: [
-		"FATAL: test 'bool' enum labels must be at [0,1]!" ], result: null});
+	assert std.assertEqual(spr.buildBoolEnum("test", 'abc', ['a','b','c']), {errors: [
+		"FATAL: test 'bool' enum abc needs TWO labels!" ], result: null});
+	assert std.assertEqual(spr.buildBoolEnum("test", 'anc', ['a',null,'c']), {errors: [
+		"FATAL: test 'bool' enum anc labels must be at [0,1]!" ], result: null});
 	true;
 
 local test_isEnumType() =
@@ -246,29 +249,29 @@ local test_isEnumType() =
 	true;
 
 local test_labelToId() =
-	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	local et = spr.buildEnum("test", 'and', ['a',null,'','d']).result;
 	assert std.assertEqual(spr.labelToId(et,'a'), 0);
 	assert std.assertEqual(spr.labelToId(et,'d'), 3);
 	assert std.assertEqual(spr.labelToId(et,true), null);
-	local bet = spr.buildBoolEnum("test", ['a','b']).result;
+	local bet = spr.buildBoolEnum("test", 'ab', ['a','b']).result;
 	assert std.assertEqual(spr.labelToId(bet,'a'), false);
 	assert std.assertEqual(spr.labelToId(bet,'b'), true);
 	assert std.assertEqual(spr.labelToId(bet,true), null);
 	true;
 
 local test_idToLabel() =
-	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	local et = spr.buildEnum("test", 'and', ['a',null,'','d']).result;
 	assert std.assertEqual(spr.idToLabel(et,0), 'A');
 	assert std.assertEqual(spr.idToLabel(et,3), 'D');
 	assert std.assertEqual(spr.idToLabel(et,true), null);
-	local bet = spr.buildBoolEnum("test", ['a','b']).result;
+	local bet = spr.buildBoolEnum("test", 'ab', ['a','b']).result;
 	assert std.assertEqual(spr.idToLabel(bet,false), 'A');
 	assert std.assertEqual(spr.idToLabel(bet,true), 'B');
 	assert std.assertEqual(spr.idToLabel(bet,1), null);
 	true;
 
 local test_safeParseEnum() =
-	local et = spr.buildEnum("test", ['a',null,'','d']).result;
+	local et = spr.buildEnum("test", 'and', ['a',null,'','d']).result;
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 'a'), {errors: [], result: 0});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 'D'), {errors: [], result: 3});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, '0'), {errors: [], result: 0});
@@ -277,7 +280,7 @@ local test_safeParseEnum() =
 		{ERROR: "'enum' value '2' is not valid", Field: "f", Index: "1", Source: "test"} ]});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', et, 'x'), {result: null, errors: [
 		{ERROR: "'enum' value 'x' is not valid", Field: "f", Index: "1", Source: "test"} ]});
-	local bet = spr.buildBoolEnum("test", ['a','b']).result;
+	local bet = spr.buildBoolEnum("test", 'ab', ['a','b']).result;
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'a'), {errors: [], result: false});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'B'), {errors: [], result: true});
 	assert std.assertEqual(spr.safeParseEnum("test", 1,'f', bet, 'false'), {errors: [], result: false});

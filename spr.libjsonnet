@@ -24,6 +24,9 @@ local SEP = ".";
 # field type separator (i.e. "a.b:int")
 local TYPE_SEP = ":";
 
+# Separator for enum labels in TSV type definition
+local ENUM_SEP = '|';
+
 # Valid identifer characters
 local ID_START = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 local INT_CHARS = "0123456789";
@@ -69,13 +72,17 @@ local dropPrefix(str, prefixWithoutSep) =
 	# "+1" to skip separator too
 	std.substr(str, lp+1, std.length(str)-lp);
 
+# Returns true if the identifier part starting after prefix is an uint.
+local uintAfterPrefix(prefix, field) =
+	int.isUIntegerStr(std.split(dropPrefix(prefix, field), SEP)[0]);
+
 # Returns true, if the fields starting with field+SEP are used as array indexes
 local fieldIsArray(fieldNames, field) =
 	if std.length(field) == 0 then
 		false
 	else
 		local prefixSep = field + SEP;
-		local f(x) = std.startsWith(x, prefixSep) && int.isUIntegerStr(dropPrefix(x, field));
+		local f(x) = std.startsWith(x, prefixSep) && uintAfterPrefix(x, field);
 		utl.matchAny(f,fieldNames);
 
 # Returns true, if the fields starting with field+SEP are used as sub-object fields
@@ -84,7 +91,7 @@ local fieldIsObj(fieldNames, field) =
 		false
 	else
 		local prefixSep = field + SEP;
-		local f(x) = std.startsWith(x, prefixSep) && !int.isUIntegerStr(dropPrefix(x, field));
+		local f(x) = std.startsWith(x, prefixSep) && !uintAfterPrefix(x, field);
 		utl.matchAny(f,fieldNames);
 
 # Finds and returns all field "prefixes"
@@ -95,13 +102,17 @@ local findFieldsPrefixes(fieldNames,depth) =
 		if (std.length(arr) > d1) then std.join(SEP, arr[0:d1]) else '';
 	std.set(std.map(m, fieldNames));
 
-# Split the name and type of a field
-local splitNameAndType(str) =
-	local idx = std.findSubstr(TYPE_SEP, str);
+# Split a string in 2. Second part is defSecond if the separator was not found.
+local split(str, sep, defSecond) =
+	local idx = std.findSubstr(sep, str);
 	if std.length(idx) == 0 then
-		[ str, STR ]
+		[ str, defSecond ]
 	else
 		[ std.substr(str, 0, idx[0]), std.substr(str, idx[0]+1, std.length(str)-idx[0]-1) ];
+
+# Split the name and type of a field
+local splitNameAndType(str) =
+	split(str, TYPE_SEP, STR);
 
 # Returns a function that takes an array of values, and computes the value of that field as an object.
 local genObjectBuilder(gfb,fieldNames,ids,field,matchingIdx) =
@@ -146,8 +157,7 @@ local genFieldBuilder(fieldNames,ids,field) =
 		local fieldSep = field+SEP;
 		local matchingIdx = [ i for i in ids if std.startsWith(fieldNames[i], fieldSep) ];
 		assert std.length(matchingIdx) > 0: "Prefix "+field+" not in "+std.toString(fieldNames);
-		local firstMatch = dropPrefix(fieldNames[matchingIdx[0]],field);
-		local isArray = int.isUIntegerStr(firstMatch);
+		local isArray = uintAfterPrefix(fieldNames[matchingIdx[0]],field);
 		local me = genFieldBuilder;
 		if isArray then
 			genArrayBuilder(me,fieldNames,ids,field,matchingIdx)
@@ -242,8 +252,30 @@ local genBuilder(fieldNames) =
 				{ result: null, errors:
 					[ log.badVal(source, index, field, type+'(unknown custom type)', str) ] },
 
+	# Builds "custom types" from the type definitions
+	local buildCustomTypes(source, fieldTypes) =
+		local spl(s) = split(s, TYPE_SEP, null);
+		local splitted = std.map(spl, fieldTypes);
+		local fieldTypesNames = std.map(function(x) x[0], splitted);
+		local build(x) =
+			local n = x[0];
+			local xtra = x[1];
+			if xtra == null then
+				null
+			else
+				local labels = std.split(xtra, ENUM_SEP);
+				if std.length(labels) > 1 then
+					# Assume it's an enum
+					[ n, spr.buildEnum(source, n, labels) ]
+				else
+					null;
+		local built = std.filter(function(x) x!=null, std.map(build, splitted));
+		local cts = utl.sum(std.map(function(nt) { [nt[0]]: nt[1].result }, built),{});
+		local errors = std.flatMap(function(nt) nt[1].errors, built);
+		utl.force({ result: [fieldTypesNames, cts], errors: errors }),
+
 	# Convert the line strings to values, as needed.
-	local tsvLine2TypedTSVLine(source, index, fieldNames, fieldTypes, values) =
+	local tsvLine2TypedTSVLine(source, index, fieldNames, fieldTypes, customTypes, values) =
 		local namesCount = std.length(fieldNames);
 		local valuesCount = std.length(values);
 		local min = std.min(namesCount, valuesCount);
@@ -251,7 +283,7 @@ local genBuilder(fieldNames) =
 		local mapper(i) =
 			local v = values[i];
 			if (std.length(v) > 0) && (fieldTypes[i] != STR) then
-				spr.safeParse(source, index, fieldNames[i], fieldTypes[i], v)
+				spr.safeParse(source, index, fieldNames[i], fieldTypes[i], v, customTypes)
 			else
 				{ result: v, errors: [] };
 		utl.force(log.mergeOnlyErrors([mapper(i) for i in ids])),
@@ -262,10 +294,13 @@ local genBuilder(fieldNames) =
 		local tsv2 = if std.type(strtsv) == "string" then spr.str2TSV(strtsv) else strtsv;
 		local fieldNamesAndTypes = std.map(splitNameAndType, tsv2[0]);
 		local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes);
-		local fieldTypes = std.map(function(nt) nt[1], fieldNamesAndTypes);
+		local fieldTypes = buildCustomTypes(source, std.map(function(nt) nt[1], fieldNamesAndTypes));
+		local errors = fieldTypes.errors;
+		local fieldTypesNames = fieldTypes.result[0];
+		local customTypes = fieldTypes.result[1];
 		local mapper(i) =
-			tsvLine2TypedTSVLine(source, i, fieldNames, fieldTypes, tsv2[i]);
-		log.mergeOnlyErrors([{"errors": [], "result": tsv2[0]}] +
+			tsvLine2TypedTSVLine(source, i, fieldNames, fieldTypesNames, customTypes, tsv2[i]);
+		log.mergeOnlyErrors([{"errors": errors, "result": tsv2[0]}] +
 			std.map(mapper, std.range(1, std.length(tsv2)-1))),
 
 	# Returns true, if "str" is a valid identifier ([a-zA-Z]+[a-zA-Z0-9]*)
@@ -303,16 +338,24 @@ local genBuilder(fieldNames) =
 				if std.length(fieldNamesAndTypes) != std.length(nonEmpty) then
 					[ FATAL+source + " has empty field name(s) defined in header row" ]
 				else
-					local multiType = std.filter(function(f) std.length(std.findSubstr(TYPE_SEP, f))
-						> 1, fieldNamesAndTypes);
-					if std.length(multiType) > 0 then
-						[ FATAL+source + " has field name(s) that are multiple type separators "
-							+ std.toString(multiType) ]
+					#local multiType = std.filter(function(f) std.length(std.findSubstr(TYPE_SEP, f))
+					#	> 1, fieldNamesAndTypes);
+					#if std.length(multiType) > 0 then
+					#	[ FATAL+source + " has field name(s) that are multiple type separators "
+					#		+ std.toString(multiType) ]
+					#else
+					local fieldNamesAndTypes2 = std.map(splitNameAndType, fieldNamesAndTypes);
+					local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes2);
+					local fieldTypesX = buildCustomTypes(source,
+						std.map(function(nt) nt[1], fieldNamesAndTypes2));
+					local errors = fieldTypesX.errors;
+					if std.length(errors) > 0 then
+						errors
 					else
-						local fieldNamesAndTypes2 = std.map(splitNameAndType, fieldNamesAndTypes);
-						local fieldNames = std.map(function(nt) nt[0], fieldNamesAndTypes2);
-						local fieldTypes = std.map(function(nt) nt[1], fieldNamesAndTypes2);
-						local badTypes = std.filter(function(t) !std.setMember(t, TYPES), fieldTypes);
+						local fieldTypes = fieldTypesX.result[0];
+						local customTypes = fieldTypesX.result[1];
+						local knownTypes = std.set(TYPES + std.objectFields(customTypes));
+						local badTypes = std.filter(function(t) !std.setMember(t, knownTypes), fieldTypes);
 						if std.length(badTypes) > 0 then
 							[ FATAL+source + " has field(s) that use unsupported types "
 								+ std.toString(badTypes) ]
@@ -381,47 +424,48 @@ local genBuilder(fieldNames) =
 	# Empty strings or null are treated the same. Labels are treated as case-insensitive.
 	# The ordinal of the enum labels (identifiers), are based on the position in the array.
 	# The same identifer cannot occure multiple times in the array.
-	buildEnum(source, labels)::
+	buildEnum(source, typeName, labels)::
+		local er = FATAL+source + " enum "+typeName+" ";
 		if std.type(labels) != "array" then
-			{ result: null, errors: [FATAL+source + " enum labels is not an array: " + std.type(labels)] }
+			{ result: null, errors: [er + "labels is not an array: " + std.type(labels)] }
 		else
 			local mapped = std.map(function(x) if x == null then '' else x, labels);
 			local bad(x) = (x != '') && ((std.type(x) != "string") || !spr.isIdentifier(x));
 			local badLabels = std.filter(bad, mapped);
 			if std.length(badLabels) > 0 then
-				{ result: null, errors: [FATAL+source + " has bad enum label(s): "
-					+ std.toString(badLabels)] }
+				{ result: null, errors: [er + "has bad label(s): " + std.toString(badLabels)] }
 			else
 				local upper = std.map(std.asciiUpper, mapped);
 				local multi(x) = (if (x == '') then 0 else std.count(upper, x)) > 1;
 				local multiLabels = std.filter(multi, upper);
 				if std.length(multiLabels) > 0 then
-					{ result: null, errors: [FATAL+source +
-						" has enum label(s) defined multiple times: " + std.toString(multiLabels)] }
+					{ result: null, errors: [er + "has label(s) defined multiple times: " +
+						std.toString(multiLabels)] }
 				else
 					local idxLabel(idx,label) = if label == '' then null else { [label]: idx };
 					# obj maps label to id
 					local obj = utl.sum(std.prune(std.mapWithIndex(idxLabel, upper)), {});
 					if std.length(obj) < 2 then
-						{ result: null, errors: [FATAL+source + " enum needs more than one label!"] }
+						{ result: null, errors: [er + "needs more than one label!"] }
 					else
 						{ result: { id2Label: upper, label2Id: obj }, errors: [] },
 	
 	# Builds an "enum type" based on an array of TWO strings (enum labels).
 	# All labels must be valid identifiers. Labels are treated as case-insensitive.
 	# "First" label (index 0) will be mapped to 'false', and "second" label will be 'true'.
-	buildBoolEnum(source, labels)::
-		local check = spr.buildEnum(source, labels);
+	buildBoolEnum(source, typeName, labels)::
+		local check = spr.buildEnum(source, typeName, labels);
 		if check.result == null then
 			check
 		else
 			local label2Id = check.result.label2Id;
 			local id2Label = check.result.id2Label;
+			local er = FATAL+source + " 'bool' enum "+typeName+" ";
 			if std.length(label2Id) != 2 then
-				{ result: null, errors: [FATAL+source + " 'bool' enum needs TWO labels!"] }
+				{ result: null, errors: [er + "needs TWO labels!"] }
 			else
 				if std.length(id2Label) != 2 then
-					{ result: null, errors: [FATAL+source + " 'bool' enum labels must be at [0,1]!"] }
+					{ result: null, errors: [er + "labels must be at [0,1]!"] }
 				else
 					{ result: { id2Label: id2Label }, errors: [] },
 

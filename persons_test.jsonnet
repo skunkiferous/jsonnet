@@ -14,10 +14,14 @@ limitations under the License.
 local spr = import 'spr.libjsonnet';
 
 local test_tsv2Obj() =
-	local expected = {"persons.tsv": {errors:[], result: [{age: "33", email:
-		["john@test.com","john@gmail.com"], name: "John"},{age: "24", name: "Mary", pet:
-			{age: "3",name: "Fluffy",race: "cat"}}]}};
-	local actual = spr.tsv2Obj('persons.tsv', spr.str2TSV(importstr 'persons.tsv'));
+	local expected = {"persons.tsv": {"errors": [ ], "result": [
+		{"age": 33, "color": 255, "email": ["john@test.com", "john@gmail.com"], "married": true, "name": "John"},
+		{"age": 24, "color": 16711680, "married": false, "name": "Mary", "pet": [
+			{"age": 3, "name": "Fluffy", "race": 0},
+			{"age": 5, "name": "Bello", "race": 1}
+		]
+	}]}};
+	local actual = spr.tsv2Obj('persons.tsv', importstr 'persons.tsv');
 	std.assertEqual(expected, actual);
 
 {
