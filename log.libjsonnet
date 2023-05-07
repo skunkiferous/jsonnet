@@ -31,7 +31,6 @@ local empty(value) =
 	(value == null || value == '' || value == {} || value == []);
 
 # Builds a log message object
-# TODO support internationalisation of log messages
 local buildLog(level,msg,data) =
 	assert (level == 'INFO') || (level == 'WARN') || (level == 'ERROR') || (level == 'FATAL')
 		: "Bad level: "+std.toString(level);

@@ -202,10 +202,34 @@ local test_tsv2Obj() =
 		[{"a": "x", "b": {"s": "y"}, "c": ["z"]}], errors: [] } });
 	true;
 
+local test_buildEnum() =
+	assert std.assertEqual(spr.buildEnum("test", ['a',null,'','d']), {errors: [], result:
+		{index2Label: ["A", '', '', "D"], label2Index: {"A": 0, "D": 3}}});
+
+	#assert std.assertEqual(spr.buildEnum("test", ['a',null,'','d']), {errors: [], result: null});
+
+	true;
+
+local test_labelToIndex() =
+#labelToIndex: ['enumType', 'enumLabel'],
+	true;
+
+local test_isEnumType() =
+#isEnumType: ['enumType'],
+	true;
+
+local test_indexToLabel() =
+#indexToLabel: ['enumType', 'enumIdx'],
+	true;
+
+local test_safeParseEnum() =
+#safeParseEnum: ['source', 'index', 'field', 'enumType', 'str'],
+	true;
 
 {
 	result:
 		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() &&
 		test_safeParse() && test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() &&
-		test_tsv2Obj()
+		test_tsv2Obj() && test_buildEnum() && test_isEnumType() && test_labelToIndex() &&
+		test_indexToLabel() && test_safeParseEnum()
 }

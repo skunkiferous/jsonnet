@@ -230,6 +230,7 @@ local genBuilder(fieldNames) =
 			assert std.assertEqual(std.type(str), "string");
 			{ result: str, errors: [] }
 		else
+			# TODO Enum support
 			{ result: null, errors: [ log.badVal(source, index, field, type+'(unknown)', str) ] },
 
 	# Convert the line strings to values, as needed.
@@ -366,6 +367,72 @@ local genBuilder(fieldNames) =
 		else
 			tsv2Obj2(source, tsv2.result),
 	
+	# Builds an "enum type" based on an array of strings (enum labels).
+	# All labels must be valid identifiers, or empty string or null.
+	# Empty strings or null are treated the same. Labels are treated as case-insensitive.
+	# The ordinal of the enum labels (identifiers), are based on the position in the array.
+	# The same identifer cannot occure multiple times in the array.
+	buildEnum(source, labels)::
+		if std.type(labels) != "array" then
+			{ result: null, errors: [FATAL+source + " labels is not an array: " + std.type(labels)] }
+		else
+			local mapped = std.map(function(x) if x == null then '' else x, labels);
+			local bad(x) = (x != '') && ((std.type(x) != "string") || !spr.isIdentifier(x));
+			local badLabels = std.filter(bad, mapped);
+			if std.length(badLabels) > 0 then
+				{ result: null, errors: [FATAL+source + " has bad label(s): "
+					+ std.toString(badLabels)] }
+			else
+				local upper = std.map(std.asciiUpper, mapped);
+				local multi(x) = (if (x == '') then 0 else std.count(upper, x)) > 1;
+				local multiLabels = std.filter(multi, upper);
+				if std.length(multiLabels) > 0 then
+					{ result: null, errors: [FATAL+source + " has label(s) defined multiple times: "
+						+ std.toString(multiLabels)] }
+				else
+					local idxLabel(idx,label) = if label == '' then null else { [label]: idx };
+					# obj maps label to index
+					local obj = utl.sum(std.prune(std.mapWithIndex(idxLabel, upper)), {});
+					{ result: { index2Label: upper, label2Index: obj }, errors: [] },
+
+	# Returns true if x is an enum type.
+	isEnumType(enumType)::
+		(std.type(enumType) == 'object') && (std.type(std.get(enumType, 'label2Index')) == 'object') &&
+		(std.type(std.get(enumType, 'index2Label')) == 'array'),
+	
+	# Maps an enum label to it's index, or null if not found.
+	labelToIndex(enumType,enumLabel)::
+		assert spr.isEnumType(enumType);
+		if std.type(enumLabel) == 'string' then
+			std.get(enumType.label2Index, std.asciiUpper(enumLabel))
+		else
+			null,
+
+	# Maps an enum index to it's label, or null if not found.
+	indexToLabel(enumType,enumIdx)::
+		assert spr.isEnumType(enumType);
+		if int.isUInt64(enumIdx) then
+			local num = int.toNumber(enumIdx);
+			if std.length(enumType.index2Label) > num then
+				enumType.index2Label[enumIdx]
+			else
+				null
+		else
+			null,
+
+	# *Safely* parse an enum value (label|idx). Returns an object like { result: index, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseEnum(source, index, field, enumType, str)::
+		local maybeIdx = spr.labelToIndex(enumType, str);
+		if maybeIdx != null then
+			{ result: maybeIdx, errors: [] }
+		else
+			local maybeLabel = spr.indexToLabel(enumType, str);
+			if maybeLabel != null then
+				{ result: int.toNumber(str), errors: [] }
+			else
+				{ result: null, errors: [ log.badVal(source, index, field, 'enum', str) ] },
+	
 	# All functions in the library, with their parameter names
 	FUNCS:: {
 		str2Lines: ['text'],
@@ -377,5 +444,10 @@ local genBuilder(fieldNames) =
 		isIdentifier: ['str'],
 		isIdentifierPath: ['str'],
 		tsv2Obj: ['source', 'tsv'],
+		buildEnum: ['source', 'arr'],
+		isEnumType: ['enumType'],
+		labelToIndex: ['enumType', 'enumLabel'],
+		indexToLabel: ['enumType', 'enumIdx'],
+		safeParseEnum: ['source', 'index', 'field', 'enumType', 'str'],
 	},
 }
