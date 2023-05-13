@@ -255,6 +255,10 @@ local multUIntStr(a,b) =
 		else
 			false,
 
+	# Returns true if num (string or number) is an integer.
+	isInteger(num)::
+		if std.type(num) == "number" then (std.round(num) == num) else int.isIntegerStr(num),
+
 	# Returns true, if "str" is a number
 	isNumberStr(str)::
 		if std.type(str) != "string" then
@@ -360,18 +364,39 @@ local multUIntStr(a,b) =
 			{ result: null, errors: [ log.badVal(source, index, field, 'hex', str) ] },
 	
 	local num2hex(num) =
-		local again(num_hex) = num_hex[0] > 0;
-		local toHex(num_hex) =
-			local rest = std.floor(num_hex[0]/16);
-			local n = std.mod(num_hex[0],16);
-			local h = std.char(if (n < 10) then (n + ZERO) else (n + A_10));
-			[rest, h+num_hex[1]];
-		utl.while(again,toHex,[num,''])[1],
+		if num == 0 then
+			"0"
+		else
+			local again(num_hex) = num_hex[0] > 0;
+			local toHex(num_hex) =
+				local rest = std.floor(num_hex[0]/16);
+				local n = std.mod(num_hex[0],16);
+				local h = std.char(if (n < 10) then (n + ZERO) else (n + A_10));
+				[rest, h+num_hex[1]];
+			utl.while(again,toHex,[num,''])[1],
 	
+	local toHexStr2(intnum) =
+		local dm = int.divmod(intnum, 4294967296); # 2 ** 32 = 8 hex digits
+		local high = dm[0];
+		local low = dm[1];
+		local highHex = num2hex(high);
+		local lowHex = num2hex(low);
+		local zeros = std.repeat('0', 8-std.length(lowHex));
+		{ result: '0x'+highHex+zeros+lowHex, errors: [] },
+	
+	local toHexStr3(intnum) =
+		local dm = int.divmod(intnum, 281474976710656); # 2 ** 48 = 12 hex digits
+		local high = dm[0];
+		local low = dm[1];
+		local highHex = num2hex(high);
+		local lowHex = num2hex(low);
+		local zeros = std.repeat('0', 12-std.length(lowHex));
+		{ result: '0x'+highHex+zeros+lowHex, errors: [] },
+
 	# Converts an integer to an hex string.  Returns an object like { result: VALUE, errors: [] }
 	# "result" is null and errors contains error message(s) if intnum is not a valid value or too big.
 	toHexStr(source, index, field, intnum)::
-		if int.isUInt64(intnum) then
+		utl.force(if int.isUInt64(intnum) then
 			if std.type(intnum) == 'number' then
 				{ result: '0x'+num2hex(intnum), errors: [] }
 			else
@@ -380,16 +405,16 @@ local multUIntStr(a,b) =
 					# Small enough
 					{ result: '0x'+num2hex(num), errors: [] }
 				else
-					local dm = int.divmod(intnum, 4294967296);
-					local high = dm[0];
-					local low = dm[1];
-					local highHex = num2hex(high);
-					local lowHex = num2hex(low);
-					local zeros = std.repeat('0', 8-std.length(lowHex));
-					{ result: '0x'+highHex+zeros+lowHex, errors: [] }
+					toHexStr2(intnum)
+		else if int.isUIntegerStr(intnum) && int.lt(intnum, "79228162514264337593543950336") then
+			toHexStr3(intnum)
+		else if int.isInt64(intnum) then
+			# Must be negative ...
+			local twosCompl = int.add(intnum, "18446744073709551616");
+			int.toHexStr(source, index, field, twosCompl)
 		else
-			# Not even usigned int
-			{ result: null, errors: [ log.badVal(source, index, field, 'int', intnum) ] },
+			# Not even int
+			{ result: null, errors: [ log.badVal(source, index, field, 'int', intnum) ] }),
 
 	# *Safely* parse a decimal number value (i.e. '123.456'). Returns an object like { result: VALUE,
 	# errors: [] }. "result" is null and errors contains error message(s) if str is not a valid value.
@@ -470,11 +495,11 @@ local multUIntStr(a,b) =
 
 	# Returns true if the number is within the valid (signed) int64 range.
 	isInt64(num)::
-		int.le(int.MIN_SIGNED_INT64, num) && int.le(num, int.MAX_SIGNED_INT64),
+		int.isInteger(num) && int.le(int.MIN_SIGNED_INT64, num) && int.le(num, int.MAX_SIGNED_INT64),
 
 	# Returns true if the number is within the valid unsigned int64 range.
 	isUInt64(num)::
-		int.le(0, num) && int.le(num, int.MAX_UNSIGNED_INT64),
+		int.isInteger(num) && int.le(0, num) && int.le(num, int.MAX_UNSIGNED_INT64),
 
 	# Negates number, even if they are big integers strings.
 	neg(num)::
@@ -693,12 +718,128 @@ local multUIntStr(a,b) =
 				else
 					# + / - == - / + == -
 					[int.neg(unsRes[0]),unsRes[1]],
+	
+	# The powers of 2, up to 64
+	TWO_POWER_N:: [
+		1, # 2**0
+		2, # 2**1
+		4, # 2**2
+		8, # 2**3
+		16, # 2**4
+		32, # 2**5
+		64, # 2**6
+		128, # 2**7
+		256, # 2**8
+		512, # 2**9
+		1024, # 2**10
+		2048, # 2**11
+		4096, # 2**12
+		8192, # 2**13
+		16384, # 2**14
+		32768, # 2**15
+		65536, # 2**16
+		131072, # 2**17
+		262144, # 2**18
+		524288, # 2**19
+		1048576, # 2**20
+		2097152, # 2**21
+		4194304, # 2**22
+		8388608, # 2**23
+		16777216, # 2**24
+		33554432, # 2**25
+		67108864, # 2**26
+		134217728, # 2**27
+		268435456, # 2**28
+		536870912, # 2**29
+		1073741824, # 2**30
+		2147483648, # 2**31
+		4294967296, # 2**32
+		8589934592, # 2**33
+		17179869184, # 2**34
+		34359738368, # 2**35
+		68719476736, # 2**36
+		137438953472, # 2**37
+		274877906944, # 2**38
+		549755813888, # 2**39
+		1099511627776, # 2**40
+		2199023255552, # 2**41
+		4398046511104, # 2**42
+		8796093022208, # 2**43
+		17592186044416, # 2**44
+		35184372088832, # 2**45
+		70368744177664, # 2**46
+		140737488355328, # 2**47
+		281474976710656, # 2**48
+		562949953421312, # 2**49
+		1125899906842624, # 2**50
+		2251799813685248, # 2**51
+		4503599627370496, # 2**52
+		"9007199254740992", # 2**53
+		"18014398509481984", # 2**54
+		"36028797018963968", # 2**55
+		"72057594037927936", # 2**56
+		"144115188075855872", # 2**57
+		"288230376151711744", # 2**58
+		"576460752303423488", # 2**59
+		"1152921504606846976", # 2**60
+		"2305843009213693952", # 2**61
+		"4611686018427387904", # 2**62
+		"9223372036854775808", # 2**63
+		"18446744073709551616", # 2**64
+	],
+
+	# "Unsafe" convertion of an integer to a hex
+	local i2h(num) = 
+		local tmp = int.toHexStr('?', 0, '?', num);
+		assert std.length(tmp.errors) == 0: "Cannot convert int to hex: "+std.toString(tmp.errors);
+		tmp.result,
+	
+	# "Unsafe" convertion of a hex to an integer
+	local h2i(num) =
+		local tmp = int.safeParseHex('?', 0, '?', num);
+		assert std.length(tmp.errors) == 0: "Cannot convert hex to int: "+std.toString(tmp.errors);
+		tmp.result,
+
+	# Turns the hex num into a valid "unsigned int 64" similar to how it's would work in C.
+	local clampHex(num) =
+		# 64 bit uint needs max 16 hex digits + 0x, so max 18 chars
+		local l = std.length(num);
+		if l <= 18 then num else '0x'+std.substr(num, l-16, 16),
+
+	# Turns the integer num into a valid "unsigned int 64" similar to how it's would work in C.
+	local clampUInt64(num) =
+		if int.isUInt64(num) then num else h2i(clampHex(i2h(num))),
+	
+	# Returns 2 ** n. Checks n is a number between 0 and 63.
+	local twoPowN(n) =
+		assert (std.type(n) == 'number'): "n is not a number!";
+		assert ((0 <= n) && (n < 64)): "n must be in range [0,63]";
+		int.TWO_POWER_N[n],
+
+	# "Left Shift" an integer num by n. Returns null if outside valid unsigned range.
+	local leftShiftUInt(num,n) =
+		clampUInt64(int.mult(clampUInt64(num), twoPowN(n))),
+
+	# "Left Shift" an hexadecimal num by n. Returns null if outside valid unsigned range.
+	local leftShiftHex(num,n) =
+		clampHex(i2h(int.mult(h2i(clampHex(num)), twoPowN(n)))),
+
+	# "Left Shift" an integer or hexadecimal num by n. Returns null if outside valid unsigned range.
+	leftShift(num,n)::
+		utl.force(if int.isUInt64(num) || int.isInt64(num) then
+			leftShiftUInt(num,n)
+		else if int.isHexStr(num) then
+			leftShiftHex(num,n)
+		else
+			null),
+
 
 	# All functions in the library, with their parameter names
 	FUNCS:: {
 		isBooleanStr: ['str'],
 		isUIntegerStr: ['str'],
 		isIntegerStr: ['str'],
+		isInteger: ['num'],
 		isNumberStr: ['str'],
 		safeParseBoolean: ['source', 'index', 'field', 'str'],
 		isHexStr: ['str'],
@@ -727,5 +868,6 @@ local multUIntStr(a,b) =
 		sub: ['a','b'],
 		mult: ['a','b'],
 		divmod: ['a','b'],
+		leftShift: ['num','n'],
 	},
 }

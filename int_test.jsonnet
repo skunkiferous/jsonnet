@@ -65,6 +65,7 @@ local test_isIntegerStr() =
 	assert !int.isIntegerStr("-1.2");
 	assert int.isIntegerStr(BIG_INT_STR);
 	assert int.isIntegerStr(BIG_NEG_STR);
+	# TODO test isInteger(num)
 	true;
 
 local test_isNumberStr() =
@@ -482,10 +483,20 @@ local test_divmod() =
 	true;
 
 local test_toHexStr() =
+	assert std.assertEqual(int.toHexStr("test",0,"f",0), { result: '0x0', errors: [] });
 	assert std.assertEqual(int.toHexStr("test",0,"f",255), { result: '0xFF', errors: [] });
 	assert std.assertEqual(int.toHexStr("test",0,"f",4294967295), { result: '0xFFFFFFFF', errors: [] });
 	assert std.assertEqual(int.toHexStr("test",0,"f",920735923817967), { result: '0x3456789ABCDEF',
 		errors: [] });
+	true;
+
+local test_leftShift() =
+	assert std.assertEqual(int.leftShift(123,0), 123);
+	assert std.assertEqual(int.leftShift(123,1), 246);
+	assert std.assertEqual(int.leftShift("920735923817967",2), 3682943695271868);
+	assert std.assertEqual(int.leftShift(1,62), "4611686018427387904");
+	assert std.assertEqual(int.leftShift("18446744073709551615",4), "18446744073709551600");
+	assert std.assertEqual(int.leftShift("0xFFFFFFFFFFFFFFFF",4), "0xFFFFFFFFFFFFFFF0");
 	true;
 
 {
@@ -496,5 +507,5 @@ local test_toHexStr() =
 		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
 		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
 		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub() &&
-		test_mult() && test_divmod() && test_toHexStr()
+		test_mult() && test_divmod() && test_toHexStr() && test_leftShift()
 }
