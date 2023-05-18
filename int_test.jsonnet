@@ -499,6 +499,87 @@ local test_leftShift() =
 	assert std.assertEqual(int.leftShift("0xFFFFFFFFFFFFFFFF",4), "0xFFFFFFFFFFFFFFF0");
 	true;
 
+local test_rightShift() =
+	assert std.assertEqual(int.rightShift(123,0), 123);
+	assert std.assertEqual(int.rightShift(123,1), 61);
+	assert std.assertEqual(int.rightShift("920735923817967",2), 230183980954491);
+	assert std.assertEqual(int.rightShift("184674407309551615",4), "11542150456846975");
+	assert std.assertEqual(int.rightShift("0xFFFFFFFFFFFFFFFF",4), "0xFFFFFFFFFFFFFFF");
+	true;
+
+local test_bitwiseAnd() =
+	assert std.assertEqual(int.bitwiseAnd(0,0), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd(1,0), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd(0,1), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd(1,1), "0x0000000000000001");
+
+	assert std.assertEqual(int.bitwiseAnd('0x0','0x0'), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd('0x1','0x0'), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd('0x0','0x1'), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd('0x1','0x1'), "0x0000000000000001");
+
+	assert std.assertEqual(int.bitwiseAnd("0x0000000000000000","0x0000000000000000"),
+		"0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd("0x1111111111111111","0x0000000000000000"),
+		"0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd("0x0000000000000000","0x1111111111111111"),
+		"0x0000000000000000");
+	assert std.assertEqual(int.bitwiseAnd("0x1111111111111111","0x1111111111111111"),
+		"0x1111111111111111");
+	true;
+
+local test_bitwiseOr() =
+	assert std.assertEqual(int.bitwiseOr(0,0), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseOr(1,0), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseOr(0,1), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseOr(1,1), "0x0000000000000001");
+
+	assert std.assertEqual(int.bitwiseOr('0x0','0x0'), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseOr('0x1','0x0'), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseOr('0x0','0x1'), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseOr('0x1','0x1'), "0x0000000000000001");
+
+	assert std.assertEqual(int.bitwiseOr("0x0000000000000000","0x0000000000000000"),
+		"0x0000000000000000");
+	assert std.assertEqual(int.bitwiseOr("0x1111111111111111","0x0000000000000000"),
+		"0x1111111111111111");
+	assert std.assertEqual(int.bitwiseOr("0x0000000000000000","0x1111111111111111"),
+		"0x1111111111111111");
+	assert std.assertEqual(int.bitwiseOr("0x1111111111111111","0x1111111111111111"),
+		"0x1111111111111111");
+	true;
+
+local test_bitwiseXor() =
+	assert std.assertEqual(int.bitwiseXor(0,0), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseXor(1,0), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseXor(0,1), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseXor(1,1), "0x0000000000000000");
+
+	assert std.assertEqual(int.bitwiseXor('0x0','0x0'), "0x0000000000000000");
+	assert std.assertEqual(int.bitwiseXor('0x1','0x0'), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseXor('0x0','0x1'), "0x0000000000000001");
+	assert std.assertEqual(int.bitwiseXor('0x1','0x1'), "0x0000000000000000");
+
+	assert std.assertEqual(int.bitwiseXor("0x0000000000000000","0x0000000000000000"),
+		"0x0000000000000000");
+	assert std.assertEqual(int.bitwiseXor("0x1111111111111111","0x0000000000000000"),
+		"0x1111111111111111");
+	assert std.assertEqual(int.bitwiseXor("0x0000000000000000","0x1111111111111111"),
+		"0x1111111111111111");
+	assert std.assertEqual(int.bitwiseXor("0x1111111111111111","0x1111111111111111"),
+		"0x0000000000000000");
+	true;
+
+local test_bitwiseNot() =
+	assert std.assertEqual(int.bitwiseNot(0), "0xFFFFFFFFFFFFFFFF");
+	assert std.assertEqual(int.bitwiseNot(1), "0xFFFFFFFFFFFFFFFE");
+
+	assert std.assertEqual(int.bitwiseNot('0x0'), "0xFFFFFFFFFFFFFFFF");
+	assert std.assertEqual(int.bitwiseNot('0x1'), "0xFFFFFFFFFFFFFFFE");
+
+	assert std.assertEqual(int.bitwiseNot("0xFFFFFFFFFFFFFFFF"), "0x0000000000000000");
+	true;
+
 {
 	result:
 		test_MIN_SAFE_INTEGER() && test_MAX_SAFE_INTEGER() && test_isBooleanStr() &&
@@ -507,5 +588,6 @@ local test_leftShift() =
 		test_safeParseNumber() && test_safeParseBoolean() && test_sign() && test_cmp() &&
 		test_cmp2() && test_min() && test_max() && test_splitSign() && test_toNumber() &&
 		test_isInt64() && test_isUInt64() && test_neg() && test_abs() && test_add() && test_sub() &&
-		test_mult() && test_divmod() && test_toHexStr() && test_leftShift()
+		test_mult() && test_divmod() && test_toHexStr() && test_leftShift() && test_rightShift() &&
+		test_bitwiseAnd() && test_bitwiseOr() && test_bitwiseXor() && test_bitwiseNot()
 }
