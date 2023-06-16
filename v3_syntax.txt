@@ -1,0 +1,346 @@
+Summary:
+	I want a text data format, that I can use for both configuration and data, that can also "process" data,
+	for validation and templating, that is trivial for "users" to read and edit, and the whole data and code
+	should be useable in many programming languages.
+
+Context:
+	I've chosen the Jsonnet language, since it was designed to enable data-templating and validation,
+	which is compatible with multiple languages, allowing many different tools of different origins to work
+	with the same data, and produce JSON as output, which can be "read" by any other language. One use-case
+	is to have a single file with all your config, and generate multiple specialized configuration files
+	from that one file, possibly in different formats, for each of the different tools you use.
+	
+	The Jsonnet website: https://jsonnet.org/
+
+	The memory-model of values in Jsonnet is JSON: null, false, true, numbers, strings, arrays and objects.
+	But while processing, functions can also be used as data. The Jsonnet language is designed to add
+	"processing" to JSON, rather than provide new data-types.
+	
+	Since my target users are NOT programmers/engineers, the format should be kept as simple as possible.
+	The user input comes from TSV (tab-separated-values) files. Therefore, values cannot contain literal EOL
+	or TAB characters. We assume UTF8 encoding. This makes it easy for users to edit the files in their
+	favorite spreadsheet/text-editor, with limited concern for the "formatting rules" of the data. A more
+	"technically oriented" user could easily import the data into a program, edit it somehow, and produce
+	modified TSV files. TSV files are also great for tracking changes over time; comparing the current
+	version with the previous version will give a very clear picture of what changed how. The idea is that
+	most TSV cells should only contain *one* value, and since literal EOL and TAB are simply not allowed in a
+	cell, quoting is neither required nor supported in this case. This keeps the format simple. To allow EOL
+	or TAB in a string, if absolutely necessary, the "standard" escaping of \n \r \t and \\ needs to be
+	supported. Because we wish to represent "structured" data (with a "shallow" depth), we can not only call
+	the columns of the TSV "i", "j" or "k", but also "a.x", "b.0.y", "b.1.z", ... In this case, column "a"
+	would be an "object", with a field named "x", and column "b" would be an array/list, containing "objects"
+	with fields named "y" and "z". Should a cell itself contain *multiple* values, for example to limit the
+	number of columns, the separator used will be *space*, and quoting will be needed for strings.
+
+	For more details on TSV, see https://www.iana.org/assignments/media-types/text/tab-separated-values
+	and https://en.wikipedia.org/wiki/Tab-separated_values
+
+	The "output" of the processing will also be JSON, but our "custom types" have to be easily detectable,
+	to allow further usage in a *different* application/language. Since it's not possible to have a "special
+	format" in "numbers", our "custom types" are encoded as JSON strings.
+	
+	The values are used in different contexts:
+	 * No-schema Input: When reading/parsing values without any schema hints about the type of those values.
+	 * Defined-schema Input: When reading/parsing values that are expected to be of a specific type.
+	 * Output(JSON): When processing the parsed input and outputting the end result of the user input
+	   processing. Those values are normally going to be array or object values. It is important to
+	   understand, that the (JSON) "output format" is designed for *machine processing*, rather than to be
+	   "human readable".
+
+	By using a JSON array as "container" for maps, we are not limited to strings are keys. Yet, all map keys
+	must still be of a fixed type, and comparable to each other.
+
+	For all values, a regular expression is used to define their input format, and for those encoded as
+	strings, their output format are also defined as a regular expression. Since this format will be used
+	primarily to represent data and configuration, allowing *unquoted* strings in the no-schema context (when
+	they do not contain space) would make for a more pleasant and readable format. Unfortunately, there is
+	also the need to specify "identifiers" (and "paths" of identifiers aka "names"), for example, as "enum
+	tags", centrally defined "constants", ... There needs to be a way to differentiate identifiers from
+	strings in the no-schema context, so one or both of them need to be marked or quoted. While identifiers
+	do not need to contain spaces, some strings do, and so we need to allow strings to be quoted, but only in
+	the no-schema context. It is easiest then, to require strings to always be quoted in the no-schema
+	context, and leave the identifiers / names unquoted. For this reason, we will also support \' and \" in
+	strings.
+
+	Empty cells of any type are left out, including strings, but the app code is free to interpret
+	empty cell in a "string column", as either empty or null.
+	
+	This document concerns itself with the parsing, and therefore *syntactic* correctness of user input.
+	(Partial ?) semantic validation is planned, and will be added later on, to allow templating (data
+	generation from a "pattern") and validation.
+
+	Once all data files have been processed and converted to JSON, I'll use another tool to convert the JSON
+	to some binary format, which will then be cached for faster processing. The "custom types" formats need
+	to be recognized automatically by the tool, so they are re-parsed and saved as binary instead of strings,
+	whenever possible.
+
+# TODO "provisional title":
+The TSV+ Syntax/Format:
+	# Ideally, we want to read TSV files with a well-defined, external, schema. That way, we only need a
+	# simple "header row" containing the *name* of each column. The *type* of each column would be implicit
+	# from the name, by looking it up in the schema. Also, importantly, that means we define the schema only
+	# *once*, so there can be no "discrepancy* between multiple copies of the same schema. But there are
+	# times, where we just want to exchange some data, and there is no pre-defined schema. And in the case
+	# where the schema is defined externally, it would be good if the user would still know the type of each
+	# column, without referring to an external file. The columns headers should always be the *first line*.
+	# But we can have two different parsing modes. Either the schema is defined externally, or the *second
+	# line* defines the type of each column. In the case of the externally defined schema, we can optionally
+	# use a comment as second line, also defining the column types, so the user doesn't have to look at the
+	# schema file while entering the data.
+
+The types supported:
+
+Null:
+	# Null is the type of the "single" value null.
+	Input(No-schema): null
+	Output(JSON): JSON null
+	Map-Key: JSON string, null
+
+Bool:
+	# In effect false|true are treated as identifiers, except they have their "native value" in JSON.
+	Plain:
+		Input(No-schema): false|true
+		Input(Schema: boolean): Same as no-schema.
+		Output(JSON): JSON boolean, false|true
+	<TYPE> as Bool:
+		Input(No-schema): <TYPE>:false|true
+		Input(Schema: <TYPE>): Same as Plain no-schema.
+		Output(JSON): JSON string, <TYPE>:false|true
+
+Number:
+	# We do NOT (currently) support "scientific notation". This is based on the fact that we expect "non
+	# technical" users. We allow numbers that would be INVALID in JSON, by allowing 0 as first digit before
+	# another digit, to be compatible with the int pattern. The dot (.) is REQUIRED in No-schema, to
+	# differentiate numbers from ints; digits afterward are optional. Note that the standard limitations of
+	# 64-bit floating-point values also apply here. Floating point values should never be used for "hashing",
+	# therefore they are not recommended as map keys, or set values.
+	Plain:
+		Input(No-schema): [\+\-]?[0-9]+\.[0-9]*
+		Input(Schema: Number): [\+\-]?[0-9]+(\.[0-9]*)?
+		Output(JSON): JSON number
+	<TYPE> as Number:
+		Input(No-schema): <TYPE>:[\+\-]?[0-9]+\.[0-9]*
+		Input(Schema: <TYPE>): Same as Plain no-schema.
+		Output(JSON): JSON string, <TYPE>:[\+\-]?[0-9]+(\.[0-9]*)? (normalized)
+
+Int:
+	# JSON, and therefore Jsonnet, does not support "big integers". The number type limit ints to use 53 bits
+	# maximum. It was a lot of work, to implement all functions needed to manipulate ints (and hex), but we
+	# have them now. Values must be within -09223372036854775808 and +18446744073709551615 to support both
+	# int64 and uint64. While some might argue that JSON itself does NOT forbid support for integers, which is
+	# correct, it is irrelevant here, because Jsonnet does not support them.
+	Plain:
+		Input(No-schema): [\+\-]?[0-9]{1,20}
+		Input(Schema: Int): Same as no-schema.
+		Output(JSON): JSON string, Int:[\+\-][0-9]{1,20} (normalized)
+	<TYPE> as Int:
+		Input(No-schema): <TYPE>:[\+\-]?[0-9]{1,20}
+		Input(Schema: <TYPE>): Same as Plain no-schema.
+		Output(JSON): JSON string, <TYPE>:[\+\-][0-9]{1,20} (normalized)
+
+Hex:
+	# Hexadecimal should be used for any "int" that is used as an id or other value with which you
+	# "shouldn't do math", for example, a "datetime" encoded as an uint64. We assume hex are always unsigned.
+	Plain:
+		Input(No-schema): 0x[0-9a-fA-F]{1,16}
+		Input(Schema: Hex): Same as no-schema.
+		# The parsed (output) hex is FIXED-LENGTH, and CAPITALIZED (except the x, which stays small).
+		Output(JSON): JSON string, Hex:0x[0-9A-F]{16} (normalized)
+	<TYPE> as Hex:
+		Input(No-schema): <TYPE>:0x[0-9a-fA-F]{1,16}
+		Input(Schema: <TYPE>): Same as Plain no-schema.
+		# The parsed (output) hex is FIXED-LENGTH, and CAPITALIZED (except the x, which stays small).
+		Output(JSON): JSON string, <TYPE>:0x[0-9A-F]{16} (normalized)
+
+Identifier:
+	# Identifiers are not "validated" while parsing; we do not check if they match something in the code. Just
+	# like integers, hex, numbers and strings, they are just a "base type" that doesn't depend on any "user
+	# code" to be parsed. Since names can also be a single identifier, we have to choose one or the other by
+	# default. I think, generally, one tried to match the "longest string" possible, so we will use name as our
+	# default in no-schema. Note that _ is an identifier, but is "reserved for special use cases" and should
+	# NOT be used as an object field name. More specifically, where a type is expected, _ can be used to mean
+	# "any type". Most "operator characters" are also supported. When present in an identifier, they are
+	# "translated" to their names:
+	# 
+	# ! ExclamationMark
+	# % PercentSign
+	# & Ampersand
+	# * Asterisk
+	# + PlusSign
+	# - MinusSign
+	# / Slash
+	# : Colon
+	# < LessThanSign
+	# = EqualsSign
+	# > GreaterThanSign
+	# ? QuestionMark
+	# ^ Caret
+	# | VerticalLine
+	# ~ Tilde
+	# $ DollarSign
+	# # NumberSign
+	# ; SemiColon
+	# @ AtSign
+	# ° Degree
+	# \ Backslash
+	# 
+	# To make code look "normal", one would normally make identifiers using operator characters alone, without
+	# letters or numbers, and use those either as "single identifiers" or at least as the last one in a name,
+	# but we don't enforce that.
+	Input(No-schema): [_a-zA-Z\+\^\$\|\?\~\#\!\%\&\*\-\/\:\<\=\>\;\@\°\\]
+		[_a-zA-Z\+\^\$\|\?\~\#\!\%\&\*\-\/\:\<\=\>\;\@\°\\0-9]*
+	Input(Schema: Identifier): Same as no-schema.
+	Output(JSON): JSON string, no prefix/quotation required
+
+Name:
+	# Names are "path" to things, built from identifiers (object field names) and array indexes.
+	# Note that an identifier alone is implicitly also a name. We assume that we either start with a library/
+	# module name, and therefore an identifier and not an integer, or we have a "single identifier".
+	# Note, that the TSV *column names* must match this type.
+	# TODO How do we know if we are meant to use a name as-is, or resolve it?
+	Input(No-schema): <Identifier>(.<Identifier>|<int>)*
+	Input(Schema: name): Same as no-schema.
+	Output(JSON): JSON string, <Identifier>(.<Identifier>|<int>)*
+
+Enum:
+	# Enums requires knowledge of the "user code" to validate the tags, just like validating the fields of an
+	# object require knowledge of the class. The original design of enums in v0.1 required specifying all the
+	# enum tags directly in the header, which was rather clunky. Since everything else couldn't be validated
+	# anyway, it seemed better to just validate enums at a later stage, like everything else. Therefore,
+	# enums do not exist anymore as a "basic type", but are rather represented using "names".
+
+String:
+	# To allow EOL or TAB, the "standard" escaping of \n \r \t and \\ needs to be supported. Once we accept
+	# escaping, we should probably also support \' and \" Of all those, only \\ is likely to "cause trouble".
+	# TODO Do we need support for "raw strings", where no escaping happens ("""...""") ?
+	# Note: Simplified regex; just "imagine" escaping support. The reason is, that firstly, such a regex looks
+	# about like this: (?<!\\)(?:\\{2})*"(?:(?<!\\)(?:\\{2})*\\"|[^"])+(?<!\\)(?:\\{2})*"
+	# And secondly, I *don't even have access to regex* in Jsonnet, so why bother trying to write one ...
+	Plain:
+		Input(No-schema): ('[^']*')|("[^"]*")
+		Input(Schema: String): .*
+		# The "idea" is, that "String" is the "default type", so we can "omit" it, and just write : before the
+		# string.
+		Output(JSON): JSON string, :<string>
+	<TYPE> as String:
+		Input(No-schema): <TYPE>:('[^']*')|("[^"]*")
+		Input(Schema: <TYPE>): .*
+		Output(JSON): JSON string, <TYPE>:<string>
+
+List:
+	# I prefer to think in terms of "collections"; list/map/set, rather than array/object.
+	# The "first value" of a "plain" list in the JSON array is the "type" of the List.
+	# Only typed lists with comparable values can be used as map keys or set values.
+	Plain:
+		# Use _ as <VALUE-TYPE> for an untyped plain list.
+		Input(No-schema): \[\s*List\s+<VALUE-TYPE>(\s+(<value>\s+)*<value>)?\s*\]
+		Input(Schema: List <VALUE-TYPE>): ((<value>\s+)*<value>)?
+		Output(JSON): JSON array, ["[]", "<VALUE-TYPE>",...]
+	<TYPE> as List:
+		# We assume <TYPE> specifies the <VALUE-TYPE>.
+		Input(No-schema): \[\s*<TYPE>(\s+(<value>\s+)*<value>)?\s*\]
+		Input(Schema: <TYPE>): ((<value>\s+)*<value>)?
+		Output(JSON): JSON array, ["<TYPE>[]",...]
+
+Set:
+	# The "first value" of a plain set in the JSON array is the "type" of the Set. Sets values are always
+	# "typed" AND comparable, to enable "sorting".
+	Plain:
+		# _ is not allowed as <VALUE-TYPE>, since the values mus be comparable.
+		Input(No-schema): \[\s*Set\s+<VALUE-TYPE>(\s+(<value>\s+)*<value>)?\s*\]
+		Input(Schema: Set <VALUE-TYPE>): ((<value>\s+)*<value>)?
+		Output(JSON): JSON array, ["<>", "<VALUE-TYPE>",...]
+	<TYPE> as Set:
+		# We assume <TYPE> specifies the <VALUE-TYPE>.
+		Input(No-schema): \[\s*<TYPE>(\s+(<value>\s+)*<value>)?\s*\]
+		Input(Schema: <TYPE>): ((<value>\s+)*<value>)?
+		Output(JSON): JSON array, ["<TYPE><>",...]
+
+Map:
+	# Duplicate keys will be reported as error. Number keys will be reported as warning (int/hex is OK)
+	# Map keys must always be typed AND comparable, to enable "sorting". In a "plain" map, the "first value"
+	# in the JSON array is the "type" of the Map keys. The "second value" is the "type" of the values. Only
+	# maps with typed, comparable values can be used as map keys or set values.
+	Plain:
+		# _ is not allowed as <KEY-TYPE>, since the keys mus be comparable.
+		# To only specify <KEY-TYPE>, use _ for the <VALUE-TYPE>.
+		Input(No-schema): \{\s*Map\s+<KEY-TYPE>\s+<VALUE-TYPE>(\s+(<key>\s+<value>\s+)*<key>\s+<value>)?\s*\}
+		Input(Schema: Map <KEY-TYPE> <VALUE-TYPE>): ((<key>\s+<value>\s+)*<key>\s+<value>)?
+		Output(JSON): JSON array, ["{}", "<KEY-TYPE>", "<VALUE-TYPE>",...]
+	<TYPE> as Map:
+		# We assume <TYPE> specifies the <KEY-TYPE> and <VALUE-TYPE>.
+		Input(No-schema): \{\s*<TYPE>(\s+(<key>\s+<value>\s+)*<key>\s+<value>)?\s*\}
+		Input(Schema: <TYPE>): ((<key>\s+<value>\s+)*<key>\s+<value>)?
+		Output(JSON): JSON array, ["<TYPE>{}",...]
+
+Object:
+	# The "first value" in the JSON object is the "type" of the Object, using "" as key. A "plain" Object has
+	# no "" key. <field> is an Identifier (without any prefix/suffix). Objects are not supported as map keys
+	# or set values, because we don't have sorting support for objects (yet).
+	Plain:
+		# A "plain" Object, is basically the same as "Map Identifier _"
+		Input(No-schema): \{\s*Object(\s+(<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?\s*\}
+		Input(Schema: Object): ((<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?
+		# Do NOT use "" as key!
+		Output(JSON): JSON object, {...}
+	<TYPE> as Object:
+		# The <TYPE> will expect a specific type for each field value.
+		Input(No-schema): \{\s*<TYPE>(\s+(<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?\s*\}
+		Input(Schema: <TYPE>): ((<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?
+		Output(JSON): JSON object, {"": "<TYPE>", ...}
+
+Expression:
+	# We use a lisp-like syntax (s-expressions) to represent code (mostly function calls). Ideally, we would
+	# be able to put code "anywhere", as long as it returns a value of the right type. We can't tell what
+	# type will be returned by a Jsonnet function in advance. To validate, we need to know what each function
+	# receives as parameters, and returns. It would be good to have "generic functions" like "add", but then
+	# we don't know the return type. The syntax shown here is primary to *call* a function. It is better to
+	# define functions in Jsonnet itself. But since some functions take other functions as parameters, we can
+	# also define functions here if we need to. Functions are also "values". Since Jsonnet is *functional*,
+	# calling a function has *no side effect*, and therefore, to be meaningful, the result of all calls have
+	# to be passed to another function OR assigned to a variable.
+	Call:
+		# Any function call, including using operators, for example (+ a b), takes this form.
+		# <PARAM>: <Expression>
+		Input(anywhere): \(\s*<Name>(\s+(<PARAM>\s+)*<PARAM>)?\s*\)
+		Output(JSON): JSON array, ["<Name>()",...]
+	Assignment:
+		# Often, you want to compute a value once, but use it multiple times. You do this by assigning the
+		# value to a temporary variable. Assignment is a call, where the function name is "=" , the first
+		# parameter is an identifier for the variable name, and the second parameter is the value to store.
+		# From that point on, the variable name can be used to reference the value. Multiple assignments
+		# can be defined in a single "assignment call". The "value" of the call is the value of the *last*
+		# Expression. If used as a "function body", the last variable could be "_" or "result"...
+		# <VAR-NAME>: <Identifier>
+		# <VALUE>: <Expression>
+		Input(anywhere): \(\s*=(\s+<VAR-NAME>\s+<VALUE>)+\s*\)
+		Output(JSON): JSON array, ["EqualsSign()",<VAR-NAME>,<VALUE>,...]
+	Comment:
+		# You will want to comment your code. Anything after "#" is ignored.
+		# Since everything is an expression, we can say that comments just take any expression.
+		Input(anywhere): \(\s*#(\s+(<Expression>\s+)*<Expression>)?\s*\)
+		Output(JSON): JSON array, ["NumberSign()",...]
+	Func:
+		# To define a function, we need to specify the return type, a list of parameters, and finally the
+		# expression that will produce the result. Duplicate params will be reported as error. The parameter
+		# list map parameter names to types. Also, unlike objects, we cannot reorder the parameters, which is
+		# why we use a JSON array to represent the function. Assignment is recommended as the Expression of
+		# complex function bodies.
+		# <PARAM-NAME>: <Identifier>
+		# <RETURN-TYPE> / <PARAM-TYPE>: <Name>
+		Input(No-schema): \(\s*Func\s+<RETURN-TYPE>\s+(<PARAM-NAME>\s+<PARAM-TYPE>\s+)+<Expression>\s*\)
+		# We assume the schema would always specify the function header.
+		Input(Schema: Func <RETURN-TYPE>( <PARAM-NAME> <PARAM-TYPE>)+): <Expression>
+		Output(JSON): JSON array, ["Func()", "<RETURN-TYPE>", "<PARAM-NAME>", "<PARAM-TYPE>",..., <Expression>]
+	<Value>:
+		# Any value can be used as an expression. Names can be used to reference values defined in Jsonnet.
+
+
+# v0.2 TODO:
+ * Implement names
+ * Check that the parsing code actually matches the regex
+ * Support quoted strings
+ * Support \n \r \t \' \" \\ escaping in strings
+ * Quote strings in output and map keys
+ * Support list as column type
+ 

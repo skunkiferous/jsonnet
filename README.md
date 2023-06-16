@@ -28,6 +28,9 @@ spr: The "safe parser" module. "Safe" as in "does not crash with an error on bad
 
 spr needs a lot more testing.
 
+TODO: Use a file called "external.libjsonnet" (or something similar) to encapsule the "external" values (files
+      and external parameters).
+
 run:
 
 jsonnet test.jsonnet
