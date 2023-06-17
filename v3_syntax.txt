@@ -86,7 +86,9 @@ The TSV+ Syntax/Format:
 	# But we can have two different parsing modes. Either the schema is defined externally, or the *second
 	# line* defines the type of each column. In the case of the externally defined schema, we can optionally
 	# use a comment as second line, also defining the column types, so the user doesn't have to look at the
-	# schema file while entering the data.
+	# schema file while entering the data. While we require the schema of custom types to parse input, we
+	# want to be able to detect the "basic type" of custom types in the JSON Output, so we keeps "formatting"
+	# characters, like the "0x" of hex.
 
 The types supported:
 
@@ -102,6 +104,7 @@ Bool:
 		Input(No-schema): false|true
 		Input(Schema: boolean): Same as no-schema.
 		Output(JSON): JSON boolean, false|true
+	# An "enum" that can/should-have only two values, could be expressed as boolean like this:
 	<TYPE> as Bool:
 		Input(No-schema): <TYPE>:false|true
 		Input(Schema: <TYPE>): Same as Plain no-schema.
@@ -113,22 +116,22 @@ Number:
 	# another digit, to be compatible with the int pattern. The dot (.) is REQUIRED in No-schema, to
 	# differentiate numbers from ints; digits afterward are optional. Note that the standard limitations of
 	# 64-bit floating-point values also apply here. Floating point values should never be used for "hashing",
-	# therefore they are not recommended as map keys, or set values.
+	# or "testing for equality", therefore they are not recommended as map keys, or set values.
 	Plain:
 		Input(No-schema): [\+\-]?[0-9]+\.[0-9]*
 		Input(Schema: Number): [\+\-]?[0-9]+(\.[0-9]*)?
 		Output(JSON): JSON number
 	<TYPE> as Number:
-		Input(No-schema): <TYPE>:[\+\-]?[0-9]+\.[0-9]*
+		Input(No-schema): <TYPE>:[\+\-]?[0-9]+(\.[0-9]*)?
 		Input(Schema: <TYPE>): Same as Plain no-schema.
-		Output(JSON): JSON string, <TYPE>:[\+\-]?[0-9]+(\.[0-9]*)? (normalized)
+		Output(JSON): JSON string, <TYPE>:[\+\-]?[0-9]+\.[0-9]* (normalized)
 
 Int:
 	# JSON, and therefore Jsonnet, does not support "big integers". The number type limit ints to use 53 bits
-	# maximum. It was a lot of work, to implement all functions needed to manipulate ints (and hex), but we
-	# have them now. Values must be within -09223372036854775808 and +18446744073709551615 to support both
-	# int64 and uint64. While some might argue that JSON itself does NOT forbid support for integers, which is
-	# correct, it is irrelevant here, because Jsonnet does not support them.
+	# maximum. It was a lot of work, to implement all functions needed to manipulate ints (and hex) as
+	# strings, but we have them now. Values must be within -09223372036854775808 and +18446744073709551615 to
+	# support both int64 and uint64. While some might argue that JSON itself does NOT forbid support for
+	# integers, which is correct, it is irrelevant here, because Jsonnet does not support them.
 	Plain:
 		Input(No-schema): [\+\-]?[0-9]{1,20}
 		Input(Schema: Int): Same as no-schema.
@@ -136,19 +139,19 @@ Int:
 	<TYPE> as Int:
 		Input(No-schema): <TYPE>:[\+\-]?[0-9]{1,20}
 		Input(Schema: <TYPE>): Same as Plain no-schema.
-		Output(JSON): JSON string, <TYPE>:[\+\-][0-9]{1,20} (normalized)
+		Output(JSON): JSON string, <TYPE>:[\+\-]?[0-9]{1,20} (normalized)
 
 Hex:
 	# Hexadecimal should be used for any "int" that is used as an id or other value with which you
 	# "shouldn't do math", for example, a "datetime" encoded as an uint64. We assume hex are always unsigned.
 	Plain:
 		Input(No-schema): 0x[0-9a-fA-F]{1,16}
-		Input(Schema: Hex): Same as no-schema.
+		Input(Schema: Hex): (0x)?[0-9a-fA-F]{1,16}
 		# The parsed (output) hex is FIXED-LENGTH, and CAPITALIZED (except the x, which stays small).
 		Output(JSON): JSON string, Hex:0x[0-9A-F]{16} (normalized)
 	<TYPE> as Hex:
-		Input(No-schema): <TYPE>:0x[0-9a-fA-F]{1,16}
-		Input(Schema: <TYPE>): Same as Plain no-schema.
+		Input(No-schema): <TYPE>:(0x)?[0-9a-fA-F]{1,16}
+		Input(Schema: <TYPE>): (0x)?[0-9a-fA-F]{1,16}
 		# The parsed (output) hex is FIXED-LENGTH, and CAPITALIZED (except the x, which stays small).
 		Output(JSON): JSON string, <TYPE>:0x[0-9A-F]{16} (normalized)
 
@@ -156,11 +159,11 @@ Identifier:
 	# Identifiers are not "validated" while parsing; we do not check if they match something in the code. Just
 	# like integers, hex, numbers and strings, they are just a "base type" that doesn't depend on any "user
 	# code" to be parsed. Since names can also be a single identifier, we have to choose one or the other by
-	# default. I think, generally, one tried to match the "longest string" possible, so we will use name as our
-	# default in no-schema. Note that _ is an identifier, but is "reserved for special use cases" and should
-	# NOT be used as an object field name. More specifically, where a type is expected, _ can be used to mean
-	# "any type". Most "operator characters" are also supported. When present in an identifier, they are
-	# "translated" to their names:
+	# default. I think, generally, one tries to match the "longest string" possible, so we will use name as
+	# our default in no-schema. Note that _ is an identifier, but is "reserved for special use cases" and
+	# should NOT be used as an object field name. More specifically, where a type is expected, _ can be used
+	# to mean "any type". Most "operator characters" are also supported. When present in an identifier, they
+	# are "translated" to their names:
 	# 
 	# ! ExclamationMark
 	# % PercentSign
@@ -169,7 +172,6 @@ Identifier:
 	# + PlusSign
 	# - MinusSign
 	# / Slash
-	# : Colon
 	# < LessThanSign
 	# = EqualsSign
 	# > GreaterThanSign
@@ -184,11 +186,13 @@ Identifier:
 	# ° Degree
 	# \ Backslash
 	# 
+	# Colon(:) is used as delimiter for custom-types, and so cannot be used as identifier.
+	#
 	# To make code look "normal", one would normally make identifiers using operator characters alone, without
 	# letters or numbers, and use those either as "single identifiers" or at least as the last one in a name,
 	# but we don't enforce that.
-	Input(No-schema): [_a-zA-Z\+\^\$\|\?\~\#\!\%\&\*\-\/\:\<\=\>\;\@\°\\]
-		[_a-zA-Z\+\^\$\|\?\~\#\!\%\&\*\-\/\:\<\=\>\;\@\°\\0-9]*
+	Input(No-schema): [_a-zA-Z\+\^\$\|\?\~\#\!\%\&\*\-\/\<\=\>\;\@\°\\]
+		[_a-zA-Z\+\^\$\|\?\~\#\!\%\&\*\-\/\<\=\>\;\@\°\\0-9]*
 	Input(Schema: Identifier): Same as no-schema.
 	Output(JSON): JSON string, no prefix/quotation required
 
@@ -228,9 +232,9 @@ String:
 		Output(JSON): JSON string, <TYPE>:<string>
 
 List:
-	# I prefer to think in terms of "collections"; list/map/set, rather than array/object.
-	# The "first value" of a "plain" list in the JSON array is the "type" of the List.
-	# Only typed lists with comparable values can be used as map keys or set values.
+	# I prefer to think in terms of "collections"; list/map/set, rather than array/object. The "first value"
+	# of a "plain" list in the JSON array is the "type" of the List. Only typed lists with comparable values
+	# can be used as map keys or set values.
 	Plain:
 		# Use _ as <VALUE-TYPE> for an untyped plain list.
 		Input(No-schema): \[\s*List\s+<VALUE-TYPE>(\s+(<value>\s+)*<value>)?\s*\]
@@ -246,7 +250,7 @@ Set:
 	# The "first value" of a plain set in the JSON array is the "type" of the Set. Sets values are always
 	# "typed" AND comparable, to enable "sorting".
 	Plain:
-		# _ is not allowed as <VALUE-TYPE>, since the values mus be comparable.
+		# _ is not allowed as <VALUE-TYPE>, since the values must be comparable.
 		Input(No-schema): \[\s*Set\s+<VALUE-TYPE>(\s+(<value>\s+)*<value>)?\s*\]
 		Input(Schema: Set <VALUE-TYPE>): ((<value>\s+)*<value>)?
 		Output(JSON): JSON array, ["<>", "<VALUE-TYPE>",...]
@@ -259,34 +263,38 @@ Set:
 Map:
 	# Duplicate keys will be reported as error. Number keys will be reported as warning (int/hex is OK)
 	# Map keys must always be typed AND comparable, to enable "sorting". In a "plain" map, the "first value"
-	# in the JSON array is the "type" of the Map keys. The "second value" is the "type" of the values. Only
-	# maps with typed, comparable values can be used as map keys or set values.
+	# in the JSON array is the "type" of the Map *keys*. The "second value" is the "type" of the *values*.
+	# Only maps with typed, comparable values can be used as map keys or set values.
+	# <KEY>: <Expression>
+	# <VALUE>: <Expression>
 	Plain:
-		# _ is not allowed as <KEY-TYPE>, since the keys mus be comparable.
+		# _ is not allowed as <KEY-TYPE>, since the keys must be comparable.
 		# To only specify <KEY-TYPE>, use _ for the <VALUE-TYPE>.
-		Input(No-schema): \{\s*Map\s+<KEY-TYPE>\s+<VALUE-TYPE>(\s+(<key>\s+<value>\s+)*<key>\s+<value>)?\s*\}
-		Input(Schema: Map <KEY-TYPE> <VALUE-TYPE>): ((<key>\s+<value>\s+)*<key>\s+<value>)?
+		Input(No-schema): \{\s*Map\s+<KEY-TYPE>\s+<VALUE-TYPE>(\s+(<KEY>\s+<VALUE>\s+)*<KEY>\s+<VALUE>)?\s*\}
+		Input(Schema: Map <KEY-TYPE> <VALUE-TYPE>): ((<KEY>\s+<VALUE>\s+)*<KEY>\s+<VALUE>)?
 		Output(JSON): JSON array, ["{}", "<KEY-TYPE>", "<VALUE-TYPE>",...]
 	<TYPE> as Map:
 		# We assume <TYPE> specifies the <KEY-TYPE> and <VALUE-TYPE>.
-		Input(No-schema): \{\s*<TYPE>(\s+(<key>\s+<value>\s+)*<key>\s+<value>)?\s*\}
-		Input(Schema: <TYPE>): ((<key>\s+<value>\s+)*<key>\s+<value>)?
+		Input(No-schema): \{\s*<TYPE>(\s+(<KEY>\s+<VALUE>\s+)*<KEY>\s+<VALUE>)?\s*\}
+		Input(Schema: <TYPE>): ((<KEY>\s+<VALUE>\s+)*<KEY>\s+<VALUE>)?
 		Output(JSON): JSON array, ["<TYPE>{}",...]
 
 Object:
 	# The "first value" in the JSON object is the "type" of the Object, using "" as key. A "plain" Object has
 	# no "" key. <field> is an Identifier (without any prefix/suffix). Objects are not supported as map keys
 	# or set values, because we don't have sorting support for objects (yet).
+	# <FIELD>: <Identifier>
+	# <VALUE>: <Expression>
 	Plain:
 		# A "plain" Object, is basically the same as "Map Identifier _"
-		Input(No-schema): \{\s*Object(\s+(<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?\s*\}
-		Input(Schema: Object): ((<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?
+		Input(No-schema): \{\s*Object(\s+(<FIELD>\s+<VALUE>\s+)*<FIELD>\s+<VALUE>)?\s*\}
+		Input(Schema: Object): ((<FIELD>\s+<VALUE>\s+)*<FIELD>\s+<VALUE>)?
 		# Do NOT use "" as key!
 		Output(JSON): JSON object, {...}
 	<TYPE> as Object:
 		# The <TYPE> will expect a specific type for each field value.
-		Input(No-schema): \{\s*<TYPE>(\s+(<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?\s*\}
-		Input(Schema: <TYPE>): ((<Identifier>\s+<value>\s+)*<Identifier>\s+<value>)?
+		Input(No-schema): \{\s*<TYPE>(\s+(<FIELD>\s+<VALUE>\s+)*<FIELD>\s+<VALUE>)?\s*\}
+		Input(Schema: <TYPE>): ((<FIELD>\s+<VALUE>\s+)*<FIELD>\s+<VALUE>)?
 		Output(JSON): JSON object, {"": "<TYPE>", ...}
 
 Expression:
@@ -328,10 +336,11 @@ Expression:
 		# complex function bodies.
 		# <PARAM-NAME>: <Identifier>
 		# <RETURN-TYPE> / <PARAM-TYPE>: <Name>
-		Input(No-schema): \(\s*Func\s+<RETURN-TYPE>\s+(<PARAM-NAME>\s+<PARAM-TYPE>\s+)+<Expression>\s*\)
+		Input(No-schema): \(\s*Func\s+<RETURN-TYPE>\s+(<PARAM-NAME>\s+<PARAM-TYPE>\s+)*<Expression>\s*\)
 		# We assume the schema would always specify the function header.
-		Input(Schema: Func <RETURN-TYPE>( <PARAM-NAME> <PARAM-TYPE>)+): <Expression>
-		Output(JSON): JSON array, ["Func()", "<RETURN-TYPE>", "<PARAM-NAME>", "<PARAM-TYPE>",..., <Expression>]
+		Input(Schema: Func <RETURN-TYPE>( <PARAM-NAME> <PARAM-TYPE>)*): <Expression>
+		Output(JSON): JSON array, ["Func()", "<RETURN-TYPE>", "<PARAM-NAME>", "<PARAM-TYPE>",...,
+					<Expression>]
 	<Value>:
 		# Any value can be used as an expression. Names can be used to reference values defined in Jsonnet.
 
