@@ -90,7 +90,7 @@ The TSV+ Syntax/Format:
 	# want to be able to detect the "basic type" of custom types in the JSON Output, so we keeps "formatting"
 	# characters, like the "0x" of hex.
 
-The types supported:
+The supported types:
 
 Null:
 	# Null is the type of the "single" value null.
@@ -200,8 +200,11 @@ Name:
 	# Names are "path" to things, built from identifiers (object field names) and array indexes.
 	# Note that an identifier alone is implicitly also a name. We assume that we either start with a library/
 	# module name, and therefore an identifier and not an integer, or we have a "single identifier".
-	# Note, that the TSV *column names* must match this type.
-	# TODO How do we know if we are meant to use a name as-is, or resolve it?
+	# Note, that the TSV *column names* must match this type. During input parsing, names are not resolved.
+	# Once the input could be successfully parsed, all names are extracted and resolved. If all names can be
+	# resolved, then the all the expressions can be computed. Once the expressions were successfully computed,
+	# the output can be generated. Ideally, we would try to carry on into the next phases, despite errors, so
+	# we can detect as many errors as possible in a single pass.
 	Input(No-schema): <Identifier>(.<Identifier>|<int>)*
 	Input(Schema: name): Same as no-schema.
 	Output(JSON): JSON string, <Identifier>(.<Identifier>|<int>)*
@@ -324,10 +327,13 @@ Expression:
 		Input(anywhere): \(\s*=(\s+<VAR-NAME>\s+<VALUE>)+\s*\)
 		Output(JSON): JSON array, ["EqualsSign()",<VAR-NAME>,<VALUE>,...]
 	Comment:
-		# You will want to comment your code. Anything after "#" is ignored.
+		# You will want to comment your code and data. Anything after "#" is ignored.
 		# Since everything is an expression, we can say that comments just take any expression.
+		# Comments are "calls" instead of "lists" because "code can be anywhere", so the input parser expects
+		# that code could even in "typed input", but would not expect lists there.
 		Input(anywhere): \(\s*#(\s+(<Expression>\s+)*<Expression>)?\s*\)
-		Output(JSON): JSON array, ["NumberSign()",...]
+		# Comments are dropped in the input parsing.
+		Output(JSON): <NOTHING>
 	Func:
 		# To define a function, we need to specify the return type, a list of parameters, and finally the
 		# expression that will produce the result. Duplicate params will be reported as error. The parameter
@@ -343,13 +349,3 @@ Expression:
 					<Expression>]
 	<Value>:
 		# Any value can be used as an expression. Names can be used to reference values defined in Jsonnet.
-
-
-# v0.2 TODO:
- * Implement names
- * Check that the parsing code actually matches the regex
- * Support quoted strings
- * Support \n \r \t \' \" \\ escaping in strings
- * Quote strings in output and map keys
- * Support list as column type
- 

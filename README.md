@@ -28,11 +28,48 @@ spr: The "safe parser" module. "Safe" as in "does not crash with an error on bad
 
 spr needs a lot more testing.
 
-TODO: Use a file called "external.libjsonnet" (or something similar) to encapsule the "external" values (files
-      and external parameters).
-
 run:
 
 jsonnet test.jsonnet
 
 to check the functionality of the code.
+
+# v0.2 TODO:
+ * Implement Identifiers, including operator replacement
+ * Implement names
+ * Check that the parsing code actually matches the regex
+ * Support quoted strings
+ * Support \n \r \t \' \" \\ escaping in strings
+ * Quote strings in output and map keys
+ * Support list as column type
+ 
+# v0.3 TODO:
+ * Refactor code, so that all functions are public, but we separate public API from internal API
+   so we can test the internal API too.
+ * Use a file called "external.libjsonnet" (or something similar) to encapsule the "external" values
+   (files and external parameters).
+ * Define external schema syntax.
+ * Process external schema files.
+ * Support external schemas.
+ * Support "second-line" internal schema
+ * In the JSON output, ints must be within the supported range.
+ * Simplify the int API to not "take anything"
+ * Add "types" to lists
+ * Add sets
+ * Add maps
+ * Support typed:
+    * Boolean
+	* Number
+	* Int
+	* Hex
+	* String
+	* List
+	* Set
+	* Map
+	* Object
+ 
+# v0.4 TODO:
+ * Support calls
+ * Support assignment
+ * Support comments
+ * Support func
