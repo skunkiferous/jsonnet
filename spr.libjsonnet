@@ -57,6 +57,9 @@ local HEX = "hex";
 # All supported field types
 local TYPES = std.set( [BOOL, STR, JSON, NUM, INT, HEX] );
 
+# All characters that *should* be escaped.
+local ESCAPABLE = "nrt'\"\\";
+
 # blank lines, and lines starting with "#", are returned as empty arrays.
 # Otherwise, line is split using the TAB character
 local trimBlankAndCommentAndSplit(line) =
@@ -223,6 +226,47 @@ local genBuilder(fieldNames) =
 		else
 			{ result: null, errors: [ log.badVal(source, index, field, 'JSON', str) ] },
 
+	# *Safely* parse a string. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseString(source, index, field, str)::
+		# The work to parse the escape is similar to the work to validate the escapes
+		local ESC = "\\";
+		local len = std.length(str);
+		local map(i) =
+			local c = str[i];
+			if i == 0 then
+				if c == ESC then
+					['','',true]
+				else
+					[c,'',false]
+			else
+				local prev = map(i-1);
+				if prev[2] then
+					local expected = (std.length(std.findSubstr(c, ESCAPABLE)) > 0);
+					local unexpected =
+						if !expected && (std.length(std.findSubstr(c, prev[1])) == 0) then
+							prev[1]+c
+						else
+							prev[1];
+					local d = if c=='n' then '\n' else if c=='r' then '\r' else if c=='t' then '\t' else c;
+					[prev[0]+d,unexpected,false]
+				else
+					if c == ESC then
+						[prev[0],prev[1],true]
+					else
+						[prev[0]+c,prev[1],false];
+		local mapped = map(len-1);
+		local result = if mapped[2] then
+			# str cannot end with the escape character!
+			local msg = log.badVal(source, index, field, STR, str, ": Cannot end with a single \\");
+			{ result: null, errors: [ msg ] }
+		else if std.length(mapped[1]) > 0 then
+			local msg = log.warnVal(source, index, field, STR, str,": Do not escape "+mapped[1]);
+			{ result: ':'+mapped[0], errors: [ msg ] }
+		else
+			{ result: ':'+mapped[0], errors: [] };
+		utl.force(result),
+
 	# Convert value to the desired type, if possible
 	safeParse(source, index, field, type, str, customTypes = null)::
 		assert std.assertEqual(std.type(type), "string");
@@ -239,8 +283,7 @@ local genBuilder(fieldNames) =
 		else if type == JSON then
 			spr.safeParseJSON(source, index, field, str)
 		else if type == STR then
-			assert std.assertEqual(std.type(str), "string");
-			{ result: str, errors: [] }
+			spr.safeParseString(source, index, field, str)
 		else
 			local ct = if customTypes == null then null else std.get(customTypes, type);
 			if ct == null then
@@ -539,6 +582,7 @@ local genBuilder(fieldNames) =
 		str2TSV: ['text'],
 		isJSONStr: ['str'],
 		safeParseJSON: ['source', 'index', 'field', 'str'],
+		safeParseString: ['source', 'index', 'field', 'str'],
 		safeParse: ['source', 'index', 'field', 'type', 'str'],
 		tsv2TypedTSV: ['source', 'tsv'],
 		isIdentifier: ['str'],

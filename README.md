@@ -39,8 +39,6 @@ to check the functionality of the code.
  * Implement names
  * Check that the parsing code actually matches the regex
  * Support quoted strings
- * Support \n \r \t \' \" \\ escaping in strings
- * "Quote" strings, by adding a : prefix, in output and map keys
  * Support list as column type
  
 # v0.3 TODO:

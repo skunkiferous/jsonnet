@@ -95,6 +95,26 @@ local test_safeParseJSON() =
 	# TODO Validate bad JSON too
 	true;
 
+local test_safeParseString() =
+	assert std.assertEqual(spr.safeParseString("test",0,"f","xxx"), { result: ":xxx", errors: [] });
+
+	assert std.assertEqual(spr.safeParseString("test",0,"f","\\n"), { result: ":\n", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f","z\\r"), { result: ":z\r", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f","\\tn"), { result: ":\tn", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f","\\\\n"), { result: ":\\n", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f","r\\\\"), { result: ":r\\", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f","\\'z"), { result: ":'z", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f","z\\'"), { result: ":z'", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f",'\\"z'), { result: ":\"z", errors: [] });
+	assert std.assertEqual(spr.safeParseString("test",0,"f",'z\\"'), { result: ":z\"", errors: [] });
+
+	assert std.assertEqual(spr.safeParseString("test",0,"f","\\n\\z\\t"), { result: ":\nz\t",
+		errors: [ {"Field": "f", "Index": "0", "Source": "test", "WARN": "'string' value '\\n\\z\\t' : Do not escape z"} ] });
+
+	assert std.assertEqual(spr.safeParseString("test",0,"f","z\\"), { result: null,
+		errors: [ {"Field": "f", "Index": "0", "Source": "test", "ERROR": "'string' value 'z\\' : Cannot end with a single \\"} ] });
+	true;
+
 local test_safeParse() =
 	assert std.assertEqual(spr.safeParse("test",0,"f","boolean","true"), { result: true, errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","number","123.456"), { result: 123.456, errors:
@@ -103,7 +123,7 @@ local test_safeParse() =
 	assert std.assertEqual(spr.safeParse("test",0,"f","hex","0xFF"), { result: 255, errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","json",'{"json":true}'), { result: {"json":true},
 		errors: [] });
-	assert std.assertEqual(spr.safeParse("test",0,"f","string","xxx"), { result: "xxx", errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string","xxx"), { result: ":xxx", errors: [] });
 	
 	assert std.assertEqual(spr.safeParse("test",0,"f","boolean","Z"), {"errors":
 		[{"ERROR": "'boolean' value 'Z' is not valid", "Field": "f", "Index": "0", "Source": "test"}],
@@ -291,7 +311,7 @@ local test_safeParseEnum() =
 
 {
 	result:
-		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() &&
+		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() && test_safeParseString() &&
 		test_safeParse() && test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() &&
 		test_tsv2Obj() && test_buildEnum() && test_buildBoolEnum() && test_isEnumType() &&
 		test_labelToId() && test_idToLabel() && test_safeParseEnum()

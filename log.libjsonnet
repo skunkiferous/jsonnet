@@ -84,8 +84,9 @@ local logVal(level, source, index, field, type, value, msg) =
 	# "field" is expected to be a string, for example, an object field(member) name.
 	# "type" is expected to be a string, for example, the expected type name of the value.
 	# "value" can be anything.
-	badVal(source, index, field, type, value)::
-		logVal('ERROR', source, index, field, type, value, 'is not valid'),
+	# "msg" is expected to be a string, saying what is the problem with this value.
+	badVal(source, index, field, type, value, msg='is not valid')::
+		logVal('ERROR', source, index, field, type, value, msg),
 
 	# Builds an warning message about a value.
 	# "source" is expected to be a string, for example, a file name.
@@ -133,7 +134,7 @@ local logVal(level, source, index, field, type, value, msg) =
 		warn: ['msg', 'data?'],
 		err: ['msg', 'data?'],
 		fatal: ['msg', 'data?'],
-		badVal: ['source', 'index', 'field', 'type', 'value'],
+		badVal: ['source', 'index', 'field', 'type', 'value', 'msg?'],
 		warnVal: ['source', 'index', 'field', 'type', 'value', 'msg'],
 		mergeOnlyErrors: ['parts'],
 		mergeContentAndErrors: ['parts'],
