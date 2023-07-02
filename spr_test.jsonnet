@@ -160,6 +160,24 @@ local test_safeParse() =
 	assert std.assertEqual(spr.safeParse("test",0,"f","complex","zzz", {complex: false}), {"errors":
 		[{"ERROR": "'complex(unknown custom type)' value 'zzz' is not valid", "Field": "f", "Index": "0",
 			"Source": "test"}], "result": null});
+	
+	assert std.assertEqual(spr.safeParse("test",0,"f","identifier","x0x"), { result: "x0x", errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","identifier","x*x"), { result: "xAsteriskx", errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","identifier","0A"), {"errors":
+		[{"ERROR": "'identifier' value '0A' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+	assert std.assertEqual(spr.safeParse("test",0,"f","identifier","ab.cd"), {"errors":
+		[{"ERROR": "'identifier' value 'ab.cd' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+
+	assert std.assertEqual(spr.safeParse("test",0,"f","name","xxx"), { result: "xxx", errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","name","x*x"), { result: "xAsteriskx", errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","name","xxx.123.*"), { result: "xxx.123.Asterisk",
+		errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","name","0A.abc"), {"errors":
+		[{"ERROR": "'name' value '0A.abc' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+
 	true;
 
 local test_isIdentifier() =
@@ -194,23 +212,23 @@ local test_isIdentifier() =
 	assert spr.isIdentifier("\\");
 	true;
 
-local test_isIdentifierPath() =
-	assert !spr.isIdentifierPath("");
-	assert spr.isIdentifierPath("test");
-	assert spr.isIdentifierPath("te_st");
-	assert spr.isIdentifierPath("_test");
-	assert spr.isIdentifierPath("test123");
-	assert !spr.isIdentifierPath("123test");
-	assert !spr.isIdentifierPath("5");
-	assert !spr.isIdentifierPath("5.a");
-	assert spr.isIdentifierPath("a.b");
-	assert spr.isIdentifierPath("a.b.c");
-	assert spr.isIdentifierPath("a.5");
-	assert spr.isIdentifierPath("a.5.c");
-	assert spr.isIdentifierPath("test123.b");
-	assert !spr.isIdentifierPath("a.123test");
+local test_isName() =
+	assert !spr.isName("");
+	assert spr.isName("test");
+	assert spr.isName("te_st");
+	assert spr.isName("_test");
+	assert spr.isName("test123");
+	assert !spr.isName("123test");
+	assert !spr.isName("5");
+	assert !spr.isName("5.a");
+	assert spr.isName("a.b");
+	assert spr.isName("a.b.c");
+	assert spr.isName("a.5");
+	assert spr.isName("a.5.c");
+	assert spr.isName("test123.b");
+	assert !spr.isName("a.123test");
 
-	assert spr.isIdentifierPath("<.=.>");
+	assert spr.isName("<.=.>");
 	true;
 
 local test_tsv2TypedTSV() =
@@ -343,10 +361,32 @@ local test_translateOperators() =
 	assert std.assertEqual(spr.translateOperators('°\\'), 'DegreeBackslash');
 	true;
 
+local test_safeParseIdentifier() =
+	assert std.assertEqual(spr.safeParseIdentifier("test",0,"f","x0x"), { result: "x0x", errors: [] });
+	assert std.assertEqual(spr.safeParseIdentifier("test",0,"f","x*x"), { result: "xAsteriskx", errors: [] });
+	assert std.assertEqual(spr.safeParseIdentifier("test",0,"f","0A"), {"errors":
+		[{"ERROR": "'identifier' value '0A' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+	assert std.assertEqual(spr.safeParseIdentifier("test",0,"f","ab.cd"), {"errors":
+		[{"ERROR": "'identifier' value 'ab.cd' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+	true;
+
+local test_safeParseName() =
+	assert std.assertEqual(spr.safeParseName("test",0,"f","xxx"), { result: "xxx", errors: [] });
+	assert std.assertEqual(spr.safeParseName("test",0,"f","x*x"), { result: "xAsteriskx", errors: [] });
+	assert std.assertEqual(spr.safeParseName("test",0,"f","xxx.123.*"), { result: "xxx.123.Asterisk",
+		errors: [] });
+	assert std.assertEqual(spr.safeParseName("test",0,"f","0A.abc"), {"errors":
+		[{"ERROR": "'name' value '0A.abc' is not valid", "Field": "f", "Index": "0",
+			"Source": "test"}], "result": null});
+	true;
+
 {
 	result:
 		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() && test_safeParseString() &&
-		test_safeParse() && test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() &&
+		test_safeParse() && test_isIdentifier() && test_isName() && test_tsv2TypedTSV() &&
 		test_tsv2Obj() && test_buildEnum() && test_buildBoolEnum() && test_isEnumType() &&
-		test_labelToId() && test_idToLabel() && test_safeParseEnum() && test_translateOperators()
+		test_labelToId() && test_idToLabel() && test_safeParseEnum() && test_translateOperators() &&
+		test_safeParseIdentifier() && test_safeParseName()
 }

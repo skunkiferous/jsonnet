@@ -314,6 +314,10 @@ local genBuilder(fieldNames) =
 			spr.safeParseJSON(source, index, field, str)
 		else if type == STR then
 			spr.safeParseString(source, index, field, str)
+		else if type == ID then
+			spr.safeParseIdentifier(source, index, field, str)
+		else if type == NAME then
+			spr.safeParseName(source, index, field, str)
 		else
 			local ct = if customTypes == null then null else std.get(customTypes, type);
 			if ct == null then
@@ -383,8 +387,21 @@ local genBuilder(fieldNames) =
 		local tmp = std.lstripChars(str, ID_START);
 		(len > 0 && (len > std.length(tmp)) && std.length(std.lstripChars(tmp, ID_PART)) == 0),
 
-	# Returns true, if "str" is a valid "identifier path" (ID | ID.ID | ID.N)
-	isIdentifierPath(str)::
+	# Convert the operator characters in an identifier into the textual description.
+	translateOperators(str)::
+		local repl(op,s) = std.strReplace(s, op, OPERATORS[op]);
+		utl.force(std.foldr(repl, std.objectFields(OPERATORS), str)),
+
+	# *Safely* parse an identifier. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseIdentifier(source, index, field, str)::
+		if spr.isIdentifier(str) then
+			{ result: spr.translateOperators(str), errors: [] }
+		else
+			{ result: null, errors: [ log.badVal(source, index, field, ID, str) ] },
+
+	# Returns true, if "str" is a valid name (identifier path) (ID | ID.ID | ID.N)
+	isName(str)::
 		local parts = std.split(str, SEP);
 		local len = std.length(parts);
 		if (len == 0) || !spr.isIdentifier(parts[0]) then
@@ -393,10 +410,13 @@ local genBuilder(fieldNames) =
 			local ok(i) = (spr.isIdentifier(i) || int.isUIntegerStr(i));
 			(len == std.length(std.filter(ok, parts[1:])) + 1),
 
-	# Convert the operator characters in an identifier into the textual description.
-	translateOperators(str)::
-		local repl(op,s) = std.strReplace(s, op, OPERATORS[op]);
-		std.foldr(repl, std.objectFields(OPERATORS), str),
+	# *Safely* parse a name. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseName(source, index, field, str)::
+		if spr.isName(str) then
+			{ result: spr.translateOperators(str), errors: [] }
+		else
+			{ result: null, errors: [ log.badVal(source, index, field, NAME, str) ] },
 	
 	# Validates the header row (field definitions) of the TSV file. Returns a array of errors.
 	local checkTSVFieldNames(source, tsv) =
@@ -438,7 +458,7 @@ local genBuilder(fieldNames) =
 							[ FATAL+source + " has field(s) that use unsupported types "
 								+ std.toString(badTypes) ]
 						else
-							local badIds = std.filter(function(f) !spr.isIdentifierPath(f), fieldNames);
+							local badIds = std.filter(function(f) !spr.isName(f), fieldNames);
 							if std.length(badIds) > 0 then
 								[ FATAL+source + " has field name(s) that are not valid identifiers "
 									+ std.toString(badIds) ]
@@ -618,10 +638,12 @@ local genBuilder(fieldNames) =
 		isJSONStr: ['str'],
 		safeParseJSON: ['source', 'index', 'field', 'str'],
 		safeParseString: ['source', 'index', 'field', 'str'],
+		safeParseIdentifier: ['source', 'index', 'field', 'str'],
+		safeParseName: ['source', 'index', 'field', 'str'],
 		safeParse: ['source', 'index', 'field', 'type', 'str'],
 		tsv2TypedTSV: ['source', 'tsv'],
 		isIdentifier: ['str'],
-		isIdentifierPath: ['str'],
+		isName: ['str'],
 		tsv2Obj: ['source', 'tsv'],
 		buildEnum: ['source', 'arr'],
 		buildBoolEnum: ['source', 'labels'],

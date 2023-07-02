@@ -35,8 +35,6 @@ jsonnet test.jsonnet
 to check the functionality of the code.
 
 # v0.2 TODO:
- * Implement Identifiers
- * Implement names
  * Support quoted strings
  * Check that the parsing code actually matches the regex
  * Support list as column type
