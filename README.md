@@ -35,10 +35,10 @@ jsonnet test.jsonnet
 to check the functionality of the code.
 
 # v0.2 TODO:
- * Implement Identifiers, including operator replacement
+ * Implement Identifiers
  * Implement names
- * Check that the parsing code actually matches the regex
  * Support quoted strings
+ * Check that the parsing code actually matches the regex
  * Support list as column type
  
 # v0.3 TODO:

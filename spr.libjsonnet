@@ -27,8 +27,32 @@ local TYPE_SEP = ":";
 # Separator for enum labels in TSV type definition
 local ENUM_SEP = '|';
 
+# Valid operator characters
+local OPERATORS = {
+	"!": "ExclamationMark",
+	"%": "PercentSign",
+	"&": "Ampersand",
+	"*": "Asterisk",
+	"+": "PlusSign",
+	"-": "MinusSign",
+	"/": "Slash",
+	"<": "LessThanSign",
+	"=": "EqualsSign",
+	">": "GreaterThanSign",
+	"?": "QuestionMark",
+	"^": "Caret",
+	"|": "VerticalLine",
+	"~": "Tilde",
+	"$": "DollarSign",
+	"#": "NumberSign",
+	";": "SemiColon",
+	"@": "AtSign",
+	"°": "Degree",
+	"\\": "Backslash",
+};
+local OPER_CHARS = std.join("", std.objectFields(OPERATORS));
 # Valid identifer characters
-local ID_START = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+local ID_START = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"+OPER_CHARS;
 local INT_CHARS = "0123456789";
 local ID_PART =  ID_START+INT_CHARS;
 
@@ -54,8 +78,14 @@ local INT = "int";
 # Hexadecimal type
 local HEX = "hex";
 
+# Identifier type
+local ID = "identifier";
+
+# Name type
+local NAME = "name";
+
 # All supported field types
-local TYPES = std.set( [BOOL, STR, JSON, NUM, INT, HEX] );
+local TYPES = std.set( [BOOL, STR, JSON, NUM, INT, HEX, ID, NAME] );
 
 # All characters that *should* be escaped.
 local ESCAPABLE = "nrt'\"\\";
@@ -363,6 +393,11 @@ local genBuilder(fieldNames) =
 			local ok(i) = (spr.isIdentifier(i) || int.isUIntegerStr(i));
 			(len == std.length(std.filter(ok, parts[1:])) + 1),
 
+	# Convert the operator characters in an identifier into the textual description.
+	translateOperators(str)::
+		local repl(op,s) = std.strReplace(s, op, OPERATORS[op]);
+		std.foldr(repl, std.objectFields(OPERATORS), str),
+	
 	# Validates the header row (field definitions) of the TSV file. Returns a array of errors.
 	local checkTSVFieldNames(source, tsv) =
 		if std.type(tsv) != "array" then
@@ -594,5 +629,6 @@ local genBuilder(fieldNames) =
 		labelToId: ['enumType', 'enumLabel'],
 		idToLabel: ['enumType', 'enumId'],
 		safeParseEnum: ['source', 'index', 'field', 'enumType', 'str'],
+		translateOperators: ['str'],
 	},
 }

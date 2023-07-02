@@ -169,7 +169,29 @@ local test_isIdentifier() =
 	assert !spr.isIdentifier("123test");
 	assert !spr.isIdentifier("a.b");
 	assert !spr.isIdentifier("5");
-	assert !spr.isIdentifier("$");
+
+	assert spr.isIdentifier("x=y");
+
+	assert spr.isIdentifier("!");
+	assert spr.isIdentifier("%");
+	assert spr.isIdentifier("&");
+	assert spr.isIdentifier("*");
+	assert spr.isIdentifier("+");
+	assert spr.isIdentifier("-");
+	assert spr.isIdentifier("/");
+	assert spr.isIdentifier("<");
+	assert spr.isIdentifier("=");
+	assert spr.isIdentifier(">");
+	assert spr.isIdentifier("?");
+	assert spr.isIdentifier("^");
+	assert spr.isIdentifier("|");
+	assert spr.isIdentifier("~");
+	assert spr.isIdentifier("$");
+	assert spr.isIdentifier("#");
+	assert spr.isIdentifier(";");
+	assert spr.isIdentifier("@");
+	assert spr.isIdentifier("°");
+	assert spr.isIdentifier("\\");
 	true;
 
 local test_isIdentifierPath() =
@@ -187,6 +209,8 @@ local test_isIdentifierPath() =
 	assert spr.isIdentifierPath("a.5.c");
 	assert spr.isIdentifierPath("test123.b");
 	assert !spr.isIdentifierPath("a.123test");
+
+	assert spr.isIdentifierPath("<.=.>");
 	true;
 
 local test_tsv2TypedTSV() =
@@ -216,8 +240,8 @@ local test_tsv2Obj() =
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('x:cat\n')), { "test": { result: null,
 		errors:
 		["FATAL: test has field(s) that use unsupported types [\"cat\"]"] } });
-	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('?\n')), { "test": { result: null, errors:
-		["FATAL: test has field name(s) that are not valid identifiers [\"?\"]"] } });
+	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('€\n')), { "test": { result: null, errors:
+		["FATAL: test has field name(s) that are not valid identifiers [\"€\"]"] } });
 	assert std.assertEqual(spr.tsv2Obj("test",spr.str2TSV('a.b\ta.0\n')), { "test": { result: null,
 		errors:
 		["FATAL: test has field name(s) that are both objects and arrays [\"a\"]"] } });
@@ -309,10 +333,20 @@ local test_safeParseEnum() =
 		{ERROR: "'enum' value 'x' is not valid", Field: "f", Index: "1", Source: "test"} ]});
 	true;
 
+local test_translateOperators() =
+	assert std.assertEqual(spr.translateOperators('a!7'), 'aExclamationMark7');
+
+	assert std.assertEqual(spr.translateOperators('%&*+'), 'PercentSignAmpersandAsteriskPlusSign');
+	assert std.assertEqual(spr.translateOperators('-/<='), 'MinusSignSlashLessThanSignEqualsSign');
+	assert std.assertEqual(spr.translateOperators('>?^|'), 'GreaterThanSignQuestionMarkCaretVerticalLine');
+	assert std.assertEqual(spr.translateOperators('~$#;@'), 'TildeDollarSignNumberSignSemiColonAtSign');
+	assert std.assertEqual(spr.translateOperators('°\\'), 'DegreeBackslash');
+	true;
+
 {
 	result:
 		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() && test_safeParseString() &&
 		test_safeParse() && test_isIdentifier() && test_isIdentifierPath() && test_tsv2TypedTSV() &&
 		test_tsv2Obj() && test_buildEnum() && test_buildBoolEnum() && test_isEnumType() &&
-		test_labelToId() && test_idToLabel() && test_safeParseEnum()
+		test_labelToId() && test_idToLabel() && test_safeParseEnum() && test_translateOperators()
 }
