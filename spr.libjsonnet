@@ -262,29 +262,22 @@ local genBuilder(fieldNames) =
 		# The work to parse the escape is similar to the work to validate the escapes
 		local ESC = "\\";
 		local len = std.length(str);
+		# Result: [<processed-str>,<pointlessly-escaped-characters>,<prev-character-was-escape>]
 		local map(i) =
 			local c = str[i];
-			if i == 0 then
-				if c == ESC then
-					['','',true]
+			local prev = if i == 0 then ['','',false] else map(i-1);
+			if prev[2] then
+				local expected = (std.length(std.findSubstr(c, ESCAPABLE)) > 0);
+				local unexpected = if !expected && (std.length(std.findSubstr(c, prev[1])) == 0) then
+					prev[1]+c
 				else
-					[c,'',false]
+					prev[1];
+				local d = if c=='n' then '\n' else if c=='r' then '\r' else if c=='t' then '\t' else c;
+				[prev[0]+d,unexpected,false]
+			else if c == ESC then
+				[prev[0],prev[1],true]
 			else
-				local prev = map(i-1);
-				if prev[2] then
-					local expected = (std.length(std.findSubstr(c, ESCAPABLE)) > 0);
-					local unexpected =
-						if !expected && (std.length(std.findSubstr(c, prev[1])) == 0) then
-							prev[1]+c
-						else
-							prev[1];
-					local d = if c=='n' then '\n' else if c=='r' then '\r' else if c=='t' then '\t' else c;
-					[prev[0]+d,unexpected,false]
-				else
-					if c == ESC then
-						[prev[0],prev[1],true]
-					else
-						[prev[0]+c,prev[1],false];
+				[prev[0]+c,prev[1],false];
 		local mapped = map(len-1);
 		local result = if mapped[2] then
 			# str cannot end with the escape character!
@@ -297,37 +290,103 @@ local genBuilder(fieldNames) =
 			{ result: ':'+mapped[0], errors: [] };
 		utl.force(result),
 
+	# *Safely* parse *quoted* strings. Returns an object like { result: VALUE, errors: [] }
+	# "result" is null and errors contains error message(s) if str is not a valid value.
+	safeParseQuotedStrings(source, index, field, str)::
+		# The work to parse the escape is similar to the work to validate the escapes
+		local ESC = "\\";
+		local BAD = "!";
+		local SEP = " ";
+		local NOSEP = "N";
+		local YESSEP = "Y";
+		local len = std.length(str);
+		# Result: [<current>,<pointlessly-escaped>,<prev-char-was-escape>,<quote-char>,<completed>]
+		local map(i) =
+			local c = str[i];
+			local prev = if i == 0 then ['','',false,NOSEP,[]] else map(i-1);
+			if prev[3] == BAD then
+				# Give up if failed ...
+				prev
+			else if prev[3] == NOSEP then
+				if (c == '"') || (c == "'") then
+					# START OF STRING
+					['',prev[1],false,c,prev[4]]
+				else
+					# Bad quoting! (SEP not allowed)
+					['','',false,BAD,[]]
+			else if prev[3] == YESSEP then
+				if c == SEP then
+					# We use space as value separators
+					[prev[0],prev[1],true,NOSEP,prev[4]]
+				else
+					# Bad quoting!
+					['','',false,BAD,[]]
+			else if prev[2] then
+				local expected = (std.length(std.findSubstr(c, ESCAPABLE)) > 0);
+				local unexpected = if !expected && (std.length(std.findSubstr(c, prev[1])) == 0) then
+					prev[1]+c
+				else
+					prev[1];
+				local d = if c=='n' then '\n' else if c=='r' then '\r' else if c=='t' then '\t' else c;
+				[prev[0]+d,unexpected,false,prev[3],prev[4]]
+			else if c == ESC then
+				[prev[0],prev[1],true,prev[3],prev[4]]
+			else if c == prev[3] then
+				# END OF STRING!
+				['',prev[1],false,YESSEP,prev[4]+[prev[0]]]
+			else
+				[prev[0]+c,prev[1],false,prev[3],prev[4]];
+		local mapped = map(len-1);
+		local result = if (mapped[3] != YESSEP) && ((mapped[3] != NOSEP) || (mapped[4] != [])) then
+			local msg = log.badVal(source, index, field, STR, str, ": Bad quoting!");
+			{ result: null, errors: [ msg ] }
+		else if std.length(mapped[1]) > 0 then
+			local msg = log.warnVal(source, index, field, STR, str,": Do not escape "+mapped[1]);
+			{ result: mapped[4], errors: [ msg ] }
+		else
+			{ result: mapped[4], errors: [] };
+		utl.force(result),
+
 	# Convert value to the desired type, if possible
 	safeParse(source, index, field, type, str, customTypes = null)::
 		assert std.assertEqual(std.type(type), "string");
 		local ctType = std.type(customTypes);
 		assert (ctType == 'null' || ctType == 'object'): "customTypes must be object";
-		if type == BOOL then
-			int.safeParseBoolean(source, index, field, str)
-		else if type == NUM then
-			int.safeParseNumber(source, index, field, str)
-		else if type == INT then
-			int.safeParseInteger(source, index, field, str)
-		else if type == HEX then
-			int.safeParseHex(source, index, field, str)
-		else if type == JSON then
-			spr.safeParseJSON(source, index, field, str)
-		else if type == STR then
-			spr.safeParseString(source, index, field, str)
-		else if type == ID then
-			spr.safeParseIdentifier(source, index, field, str)
-		else if type == NAME then
-			spr.safeParseName(source, index, field, str)
-		else
-			local ct = if customTypes == null then null else std.get(customTypes, type);
-			if ct == null then
-				{ result: null, errors:
-					[ log.badVal(source, index, field, type+'(unknown type)', str) ] }
-			else if spr.isEnumType(ct) then
-				spr.safeParseEnum(source, index, field, ct, str)
+		local parseOne(typeOne,str) =
+			if typeOne == BOOL then
+				int.safeParseBoolean(source, index, field, str)
+			else if typeOne == NUM then
+				int.safeParseNumber(source, index, field, str)
+			else if typeOne == INT then
+				int.safeParseInteger(source, index, field, str)
+			else if typeOne == HEX then
+				int.safeParseHex(source, index, field, str)
+			else if typeOne == JSON then
+				spr.safeParseJSON(source, index, field, str)
+			else if typeOne == STR then
+				spr.safeParseString(source, index, field, str)
+			else if typeOne == ID then
+				spr.safeParseIdentifier(source, index, field, str)
+			else if typeOne == NAME then
+				spr.safeParseName(source, index, field, str)
 			else
-				{ result: null, errors:
-					[ log.badVal(source, index, field, type+'(unknown custom type)', str) ] },
+				local ct = if customTypes == null then null else std.get(customTypes, typeOne);
+				if ct == null then
+					{ result: null, errors:
+						[ log.badVal(source, index, field, typeOne+'(unknown type)', str) ] }
+				else if spr.isEnumType(ct) then
+					spr.safeParseEnum(source, index, field, ct, str)
+				else
+					{ result: null, errors:
+						[ log.badVal(source, index, field, typeOne+'(unknown custom type)', str) ] };
+		if std.endsWith(type, "[]") then
+			local typeOne = std.substr(type, 0, std.length(type)-2);
+			if typeOne == STR then
+				spr.safeParseQuotedStrings(source, index, field, str)
+			else
+				log.mergeOnlyErrors(std.map(function(s) parseOne(typeOne,s), std.split(str, ' ')))
+		else
+			parseOne(type,str),
 
 	# Builds "custom types" from the type definitions
 	local buildCustomTypes(source, fieldTypes) =
@@ -452,7 +511,9 @@ local genBuilder(fieldNames) =
 					else
 						local fieldTypes = fieldTypesX.result[0];
 						local customTypes = fieldTypesX.result[1];
-						local knownTypes = std.set(TYPES + std.objectFields(customTypes));
+						local knownSimpleTypes = std.set(TYPES + std.objectFields(customTypes));
+						local knownAryTypes = std.map(function(t) t+'[]', knownSimpleTypes);
+						local knownTypes = std.set(knownSimpleTypes + knownAryTypes);
 						local badTypes = std.filter(function(t) !std.setMember(t, knownTypes), fieldTypes);
 						if std.length(badTypes) > 0 then
 							[ FATAL+source + " has field(s) that use unsupported types "
@@ -640,6 +701,7 @@ local genBuilder(fieldNames) =
 		safeParseString: ['source', 'index', 'field', 'str'],
 		safeParseIdentifier: ['source', 'index', 'field', 'str'],
 		safeParseName: ['source', 'index', 'field', 'str'],
+		safeParseQuotedStrings: ['source', 'index', 'field', 'str'],
 		safeParse: ['source', 'index', 'field', 'type', 'str'],
 		tsv2TypedTSV: ['source', 'tsv'],
 		isIdentifier: ['str'],

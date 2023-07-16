@@ -35,9 +35,7 @@ jsonnet test.jsonnet
 to check the functionality of the code.
 
 # v0.2 TODO:
- * Support quoted strings
  * Check that the parsing code actually matches the regex
- * Support list as column type
  
 # v0.3 TODO:
  * Refactor code, so that all functions are public, but we separate public API from internal API
@@ -65,6 +63,7 @@ to check the functionality of the code.
 	* Object
  
 # v0.4 TODO:
+ * Support No-Schema
  * Support calls
  * Support assignment
  * Support comments

@@ -1,5 +1,5 @@
-name	age:number	married:boolean	color:hex	pet.0.name	pet.0.age:int	pet.0.race:race:cat|dog|fish	pet.1.name	pet.1.age:int	pet.1.race:race:cat|dog|fish	email.0	email.1:string
+name	age:number	married:boolean	color:hex	pet.0.name	pet.0.age:int	pet.0.race:race:cat|dog|fish	pet.1.name	pet.1.age:int	pet.1.race:race:cat|dog|fish	email:string[]
 # Here the data:											
-John	33.0	true	0x0000FF							john@test.com	john@gmail.com
+John	33.0	true	0x0000FF							'john@test.com' 'john@gmail.com'
 											
 Mary	24	false	0xFF0000	Fluffy	3	cat	Bello	5	dog		

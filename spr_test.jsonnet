@@ -178,6 +178,28 @@ local test_safeParse() =
 		[{"ERROR": "'name' value '0A.abc' is not valid", "Field": "f", "Index": "0",
 			"Source": "test"}], "result": null});
 
+	assert std.assertEqual(spr.safeParse("test",0,"f","boolean[]","false true"), { result: [false,true],
+		errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","number[]","123.456 42"), { result: [123.456,42.0],
+		errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","int[]","4 2"), { result: [4,2], errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","hex[]","0xFF 0x11"), { result: [255,17], errors: [] });
+
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'x'"), { result: ['x'], errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]",'"x"'), { result: ['x'], errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'abc' 'def'"), { result: ['abc','def'],
+		errors: [] });
+
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'x"), { result: null, errors:
+		[{"ERROR": "'string' value ''x' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","x'"), { result: null, errors:
+		[{"ERROR": "'string' value 'x'' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]"," 'x'"), { result: null, errors:
+		[{"ERROR": "'string' value ' 'x'' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'x' "), { result: null, errors:
+		[{"ERROR": "'string' value ''x' ' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'x'   'y'"), { result: null, errors:
+		[{"ERROR": "'string' value ''x'   'y'' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
 	true;
 
 local test_isIdentifier() =
@@ -382,11 +404,29 @@ local test_safeParseName() =
 			"Source": "test"}], "result": null});
 	true;
 
+local test_safeParseQuotedStrings() =
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'x'"), { result: ['x'], errors: [] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f",'"x"'), { result: ['x'], errors: [] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'abc' 'def'"), { result: ['abc','def'],
+		errors: [] });
+
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'x"), { result: null, errors:
+		[{"ERROR": "'string' value ''x' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","x'"), { result: null, errors:
+		[{"ERROR": "'string' value 'x'' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f"," 'x'"), { result: null, errors:
+		[{"ERROR": "'string' value ' 'x'' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'x' "), { result: null, errors:
+		[{"ERROR": "'string' value ''x' ' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'x'   'y'"), { result: null, errors:
+		[{"ERROR": "'string' value ''x'   'y'' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
+	true;
+
 {
 	result:
 		test_str2Lines() && test_str2TSV() && test_isJSONStr() && test_safeParseJSON() && test_safeParseString() &&
 		test_safeParse() && test_isIdentifier() && test_isName() && test_tsv2TypedTSV() &&
 		test_tsv2Obj() && test_buildEnum() && test_buildBoolEnum() && test_isEnumType() &&
 		test_labelToId() && test_idToLabel() && test_safeParseEnum() && test_translateOperators() &&
-		test_safeParseIdentifier() && test_safeParseName()
+		test_safeParseIdentifier() && test_safeParseName() && test_safeParseQuotedStrings()
 }
