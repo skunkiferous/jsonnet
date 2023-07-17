@@ -185,10 +185,11 @@ local test_safeParse() =
 	assert std.assertEqual(spr.safeParse("test",0,"f","int[]","4 2"), { result: [4,2], errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","hex[]","0xFF 0x11"), { result: [255,17], errors: [] });
 
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","x"), { result: ['x'], errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'x'"), { result: ['x'], errors: [] });
 	assert std.assertEqual(spr.safeParse("test",0,"f","string[]",'"x"'), { result: ['x'], errors: [] });
-	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'abc' 'def'"), { result: ['abc','def'],
-		errors: [] });
+	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'abc' def \"hij\""),
+		{ result: ['abc','def','hij'], errors: [] });
 
 	assert std.assertEqual(spr.safeParse("test",0,"f","string[]","'x"), { result: null, errors:
 		[{"ERROR": "'string' value ''x' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });
@@ -405,10 +406,11 @@ local test_safeParseName() =
 	true;
 
 local test_safeParseQuotedStrings() =
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f",'x'), { result: ['x'], errors: [] });
 	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'x'"), { result: ['x'], errors: [] });
 	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f",'"x"'), { result: ['x'], errors: [] });
-	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'abc' 'def'"), { result: ['abc','def'],
-		errors: [] });
+	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'abc' def \"hij\""),
+		{ result: ['abc','def','hij'], errors: [] });
 
 	assert std.assertEqual(spr.safeParseQuotedStrings("test",0,"f","'x"), { result: null, errors:
 		[{"ERROR": "'string' value ''x' : Bad quoting!", "Field": "f", "Index": "0", "Source": "test"}] });

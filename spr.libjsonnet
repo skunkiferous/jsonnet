@@ -297,6 +297,7 @@ local genBuilder(fieldNames) =
 		local ESC = "\\";
 		local BAD = "!";
 		local SEP = " ";
+		local NAKED = std.char(0);
 		local NOSEP = "N";
 		local YESSEP = "Y";
 		local len = std.length(str);
@@ -311,9 +312,12 @@ local genBuilder(fieldNames) =
 				if (c == '"') || (c == "'") then
 					# START OF STRING
 					['',prev[1],false,c,prev[4]]
-				else
+				else if c == SEP then
 					# Bad quoting! (SEP not allowed)
 					['','',false,BAD,[]]
+				else
+					# START OF "naked" STRING
+					[c,prev[1],false,NAKED,prev[4]]
 			else if prev[3] == YESSEP then
 				if c == SEP then
 					# We use space as value separators
@@ -334,9 +338,16 @@ local genBuilder(fieldNames) =
 			else if c == prev[3] then
 				# END OF STRING!
 				['',prev[1],false,YESSEP,prev[4]+[prev[0]]]
+			else if (c == SEP) && (prev[3] == NAKED) then
+				# END OF "naked" STRING! SEP was "consumed", so we go NOSEP
+				['',prev[1],false,NOSEP,prev[4]+[prev[0]]]
+			else if (c == '"') || (c == "'") && (prev[3] == NAKED) then
+				# Bad quoting!
+				['','',false,BAD,[]]
 			else
 				[prev[0]+c,prev[1],false,prev[3],prev[4]];
-		local mapped = map(len-1);
+		local m = map(len-1);
+		local mapped = if m[3] == NAKED then ['',m[1],m[2],YESSEP,m[4]+[m[0]]] else m;
 		local result = if (mapped[3] != YESSEP) && ((mapped[3] != NOSEP) || (mapped[4] != [])) then
 			local msg = log.badVal(source, index, field, STR, str, ": Bad quoting!");
 			{ result: null, errors: [ msg ] }
